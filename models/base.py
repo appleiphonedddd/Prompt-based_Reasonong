@@ -18,5 +18,5 @@ class BaseLLM(ABC):
         self.model = model
     
     @abstractmethod
-    def generate(self, prompt: str, temperature: float = 0.7) -> LLMResponse:
+    def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
         pass

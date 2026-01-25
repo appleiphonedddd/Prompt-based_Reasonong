@@ -12,7 +12,7 @@ class GeminiClient(BaseLLM):
 
         self.client = genai.Client(api_key=self.api_key)
 
-    def generate(self, prompt: str, temperature: float = 0.7) -> LLMResponse:
+    def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
         try:
             config = types.GenerateContentConfig(
                 temperature=temperature

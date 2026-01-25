@@ -2,17 +2,17 @@ import os
 from openai import OpenAI
 from base import BaseLLM, LLMResponse
 
-class GPTClient(BaseLLM):
+class DeepSeekClient(BaseLLM):
 
-    def __init__(self, api_key: str = None, model: str = "gpt-5.0-turbo"):
-        key = api_key or os.getenv("OPENAI_API_KEY")
+    def __init__(self, api_key: str = None, model: str ="deepseek-chat"):
+        key = api_key or os.getenv("DEEPSEEK_API_KEY")
         if not key:
-            raise ValueError("OpenAI API Key is required.")
+            raise ValueError("DeepSeek API Key is required.")
         super().__init__(key, model)
         self.client = OpenAI(api_key=self.api_key)
     
     def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
-        
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -31,4 +31,4 @@ class GPTClient(BaseLLM):
                 raw_response=response.model_dump()
             )
         except Exception as e:
-            raise RuntimeError(f"GPT API Error: {e}")
+            raise RuntimeError(f"DeepSeek API Error: {e}")
