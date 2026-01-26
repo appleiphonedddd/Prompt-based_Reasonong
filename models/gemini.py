@@ -4,7 +4,7 @@ from google.genai import types
 from base import BaseLLM, LLMResponse
 
 class GeminiClient(BaseLLM):
-    def __init__(self, api_key: str = None, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str = None, model: str = "gemini-2.0-flash-lite"):
         key = api_key or os.getenv("GEMINI_API_KEY")
         if not key:
             raise ValueError("Gemini API Key is required.")

@@ -9,7 +9,7 @@ class DeepSeekClient(BaseLLM):
         if not key:
             raise ValueError("DeepSeek API Key is required.")
         super().__init__(key, model)
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = OpenAI(api_key=self.api_key, base_url="https://api.deepseek.com")
     
     def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
 

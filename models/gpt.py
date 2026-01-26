@@ -4,7 +4,7 @@ from base import BaseLLM, LLMResponse
 
 class GPTClient(BaseLLM):
 
-    def __init__(self, api_key: str = None, model: str = "gpt-5.0-turbo"):
+    def __init__(self, api_key: str = None, model: str = "gpt-4o-mini"):
         key = api_key or os.getenv("OPENAI_API_KEY")
         if not key:
             raise ValueError("OpenAI API Key is required.")
