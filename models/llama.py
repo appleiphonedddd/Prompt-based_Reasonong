@@ -2,14 +2,14 @@ import os
 from openai import OpenAI
 from .base import BaseLLM, LLMResponse
 
-class DeepSeekClient(BaseLLM):
+class LlamaClient(BaseLLM):
 
-    def __init__(self, api_key: str = None, model: str ="deepseek-chat"):
-        key = api_key or os.getenv("DEEPSEEK_API_KEY")
+    def __init__(self, api_key: str = None, model: str ="Llama-3.3-8B-Instruct"):
+        key = api_key or os.getenv("LLAMA_API_KEY")
         if not key:
-            raise ValueError("DeepSeek API Key is required.")
+            raise ValueError("Llama API Key is required.")
         super().__init__(key, model)
-        self.client = OpenAI(api_key=self.api_key, base_url="https://api.deepseek.com")
+        self.client = OpenAI(api_key=self.api_key, base_url="https://api.llama.com/compat/v1/")
     
     def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
 
@@ -31,4 +31,4 @@ class DeepSeekClient(BaseLLM):
                 raw_response=response.model_dump()
             )
         except Exception as e:
-            raise RuntimeError(f"DeepSeek API Error: {e}")
+            raise RuntimeError(f"Llama API Error: {e}")

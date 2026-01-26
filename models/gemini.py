@@ -1,7 +1,7 @@
 import os
 from google import genai
 from google.genai import types
-from base import BaseLLM, LLMResponse
+from .base import BaseLLM, LLMResponse
 
 class GeminiClient(BaseLLM):
     def __init__(self, api_key: str = None, model: str = "gemini-2.0-flash-lite"):
