@@ -19,15 +19,20 @@ Author: Egor Morozov
 import os
 from openai import OpenAI
 from .base import BaseLLM, LLMResponse
+from utils.config import get_config
 
 class DeepSeekClient(BaseLLM):
 
     def __init__(self, api_key: str = None, model: str ="deepseek-chat"):
+        config = get_config()
         key = api_key or os.getenv("API_KEY")
         if not key:
             raise ValueError("API Key is required.")
+        model = model or config["models"]["deepseek"]
         super().__init__(key, model)
-        self.client = OpenAI(api_key=self.api_key, base_url="http://192.168.50.132:11434/v1")
+        base_url = config["llm"]["local"]["base_url"]
+        
+        self.client = OpenAI(api_key=self.api_key, base_url=base_url)
     
     def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
 

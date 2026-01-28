@@ -1,0 +1,16 @@
+# LLM API Configuration
+llm:
+  local:
+    ## You can change the base_url to point to your local LLM server
+    base_url: "http://192.168.50.132:11434/v1"
+  
+  gemini:
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+# Default models
+models:
+  gpt: "gpt-4o-mini"
+  deepseek: "deepseek-chat"
+  llama: "llama3:8b"
+  qwen: "qwen2.5:14b"
+  gemini: "gemini-2.0-flash-lite"
