@@ -6,11 +6,12 @@ from models.gpt import GPTClient
 from models.deepseek import DeepSeekClient
 from models.llama import LlamaClient
 from models.gemini import GeminiClient
+from models.qwen import QwenClient
 from utils.metrics import Efficiency
 
 def main():
 
-    parser = argparse.ArgumentParser(description="Prompt-Based Reasoning Evaluation Framework")
+    parser = argparse.ArgumentParser(description="Prompt-Based Reasoning Evaluation Starting!!!")
     
     parser.add_argument("--model", type=str, default="gpt-4o", help="Model name")
 
@@ -23,6 +24,10 @@ def main():
     correct_count = 0
 
     print(f"Experiment Report")
+
+    print(f"Model: {args.model}")
+    print(f"Dataset: {args.benchmark}")
+    print(f"Baseline: {args.baseline}")
 
 
 if __name__ == "__main__":

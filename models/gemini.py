@@ -49,4 +49,4 @@ class GeminiClient(BaseLLM):
                 raw_response=response.model_dump()
             )
         except Exception as e:
-            raise RuntimeError(f"Llama API Error: {e}")
+            raise RuntimeError(f"Gemini API Error: {e}")
