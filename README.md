@@ -26,20 +26,10 @@ conda env create -f env.yaml
 conda activate Prompt
 ```
 
-2. Apply for API keys
-
-- [GPT](https://platform.openai.com/api-keys)
-
-- [Gemini](https://aistudio.google.com/api-keys)
-
-- [DeepSeek](https://platform.deepseek.com/usage)
-
-
-3. Set the Google API key or OpenAI API key as an environment variable
+2. Run the build script to set up Docker and NVIDIA Container Toolkit and Ollama
 
 ```sh
-export GOOGLE_API_KEY="your_api_key_here"
-export OPENAI_API_KEY="your_api_key_here"
+./setup_ollama_gpu.sh
 ```
 
 4. Run evaluation
