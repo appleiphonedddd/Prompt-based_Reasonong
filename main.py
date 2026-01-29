@@ -8,6 +8,7 @@ from models.llama import LlamaClient
 from models.gemini import GeminiClient
 from models.qwen import QwenClient
 from utils.metrics import Efficiency, Accuracy
+from utils.get_mean_std import AccuracyStatistics
 
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
@@ -27,15 +28,28 @@ def run(args):
         logger.error(f"Model {model_family} not supported.")
         return
 
-    client = MODEL_MAP[model_family](model_name=args.model)
+    print(f"\n--- Starting Evaluation ---")
+    print(f"Model: {args.model}")
+    print(f"Benchmark: {args.benchmark}")
+    print(f"Baseline: {args.baseline}")
+    print(f"Number of Runs: {args.num_runs}\n")
 
-    efficiency = Efficiency()
-    accuracy = Accuracy()
+    stats = AccuracyStatistics()
 
-    print(f"--- Starting Evaluation: {args.benchmark} with {args.model} ---")
-
-    print("All done!")
-
+    for i in range(1, args.num_runs + 1):
+        print(f"[Run {i}/{args.num_runs}] ", end="")
+        client = MODEL_MAP[model_family](model_name=args.model)
+        
+        accuracy = Accuracy()
+        acc = accuracy.get_accuracy()
+        stats.add_result(acc)
+        
+        print(f"Accuracy: {acc:.2f}%")
+        efficiency = Efficiency()
+    
+    stats.print_summary(baseline_name=args.baseline)
+    
+    print("\nAll done!")
 
 if __name__ == "__main__":
     
@@ -47,6 +61,8 @@ if __name__ == "__main__":
     parser.add_argument("--benchmark", type=str, default="gameof24", help="Dataset")
     
     parser.add_argument("--baseline", type=str, default="ZeroCoT", help="Baseline")
+    
+    parser.add_argument("--num_runs", type=int, default=1, help="Number of experiment runs")
     
     args = parser.parse_args()
 
