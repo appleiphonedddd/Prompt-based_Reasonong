@@ -1,6 +1,6 @@
 # 🚀 Prompt-based Reasoning
 
-> **A framework for evaluating Large Language Models (LLMs) on complex reasoning tasks using Chain-of-Thought (CoT) and various prompting strategies**
+> **A framework for evaluating Large Language Models (LLMs) on complex reasoning tasks using various prompting strategies**
 
 ## Contents
 
