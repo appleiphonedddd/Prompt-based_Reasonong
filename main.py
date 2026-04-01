@@ -32,7 +32,7 @@ def run(args):
     print(f"Model: {args.model}")
     print(f"Benchmark: {args.benchmark}")
     print(f"Baseline: {args.baseline}")
-    print(f"Number of Runs: {args.num_runs}\n")
+    print(f"Number of Runs: {args.num_runs}")
 
     stats = AccuracyStatistics()
 
@@ -63,7 +63,20 @@ if __name__ == "__main__":
     parser.add_argument("--baseline", type=str, default="ZeroCoT", help="Baseline")
     
     parser.add_argument("--num_runs", type=int, default=1, help="Number of experiment runs")
-    
+
+    # RoT
+    parser.add_argument(
+        "--warmup", type=int, default=5,
+        help="[RoT] Number of reverse reasoning candidates K (default: 5)"
+    )
+    parser.add_argument(
+        "--candidate_temperature", type=float, default=0.7,
+        help="[RoT] Sampling temperature for candidate generation (default: 0.7)"
+    )
+    parser.add_argument(
+        "--instantiation_temperature", type=float, default=0.1,
+        help="[RoT] Sampling temperature for instantiation reasoning (default: 0.1)"
+    )
     args = parser.parse_args()
 
     for arg in vars(args):
