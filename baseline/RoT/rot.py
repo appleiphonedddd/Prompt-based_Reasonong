@@ -1,14 +1,18 @@
 """
 Reversal of Thought (RoT) Prompting Implementation.
 
-RoT enhances LLM reasoning through a three-stage pipeline:
+RoT enhances LLM reasoning through a four-stage pipeline:
 1. Reverse Reasoning Warm-up: Generate multiple candidate task definitions
    by asking the LLM to reverse-engineer the task from demonstrations.
 2. Pairwise Preference Selection: Use the LLM as a judge to compare
    candidates pairwise, then apply transitive closure to strengthen
    preference scores and select the optimal candidate.
-3. Instantiation: Apply the selected optimal prompt ("LLM taste") to
-   solve the actual input question with structured reasoning.
+3. Cognitive Preference Manager (CPM): Assess knowledge boundaries via
+   embedding similarity, then aggregate the original prompt with the
+   LLM-taste prompt using task-appropriate strategies (solution logic
+   for known tasks, stylistic template for unknown tasks).
+4. Instantiation: Apply the CPM-refined prompt to solve the actual
+   input question with structured reasoning.
 
 Reference:
 - Yuan, J., Du, D., Zhang, H., Di, Z., & Naseem, U. (2025).
@@ -21,11 +25,14 @@ Author: Egor Morozov
 
 import re
 import math
+import logging
+from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Tuple
 
 from baseline.basebaseline import BaseBaseline, BaselineResponse
 from models.base import BaseLLM
 
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────
 # Prompt templates (adapted from the official RoT release)
@@ -86,25 +93,172 @@ Think step by step, but reflect your reasoning only through the final output.
 ** Answer **: {{final answer}}"""
 
 
+# ─────────────────────────────────────────────────────────
+# CPM Prompt Templates (from Appendix A.2, Figure 5)
+# ─────────────────────────────────────────────────────────
+
+CPM_KNOWN_PROMPT = """You are an expert in information synthesis, proficient in combining \
+complementary insights and extracting essential details from the viewpoints of the distilled \
+task definition, detailed generic logical pseudocode, case example, and input-output format.
+
+For Known Task:
+The Reversal Prompt and Benchmark Prompt should complement each other. Analyze the content \
+and structure of both prompts to identify their accuracy, similarities and differences. \
+Synthesize the key points and integrate them into a unified and coherent output.
+
+Input:
+LLM-Taste Prompt:{llm_taste}
+Benchmark Prompt:{task_prompt}
+Output:"""
+
+CPM_UNKNOWN_PROMPT = """You are an expert in information synthesis, proficient in combining \
+complementary insights and extracting essential details from the viewpoints of the distilled \
+task definition, detailed generic logical pseudocode, case example, and input-output format.
+
+For Unknown Task:
+Extract a cognitive preference template T from any inaccuracies in the LLM-taste prompt. \
+Integrate meta-cognitive elements from the original prompt P into this template to enhance T.
+
+Input:
+LLM-Taste Prompt:{llm_taste}
+Benchmark Prompt:{task_prompt}
+Output:"""
+
+
+# ─────────────────────────────────────────────────────────
+# Embedding Model Interface for CPM (Algorithm 2)
+# ─────────────────────────────────────────────────────────
+
+class BaseEmbeddingModel(ABC):
+    """Abstract interface for computing text similarity.
+
+    CPM (Cognitive Preference Manager) requires an embedding model to
+    assess knowledge boundaries by comparing the original task definition
+    with the reverse-reasoned task definition.
+
+    The paper uses ``dunzhang/stella_en_1.5B_v5`` via sentence-transformers.
+    """
+
+    @abstractmethod
+    def compute_similarity(self, text_a: str, text_b: str) -> float:
+        """Compute cosine similarity between two texts.
+
+        Args:
+            text_a: First text (typically the original task definition).
+            text_b: Second text (typically the LLM-taste task definition).
+
+        Returns:
+            Cosine similarity score in [0, 1].
+        """
+        pass
+
+
+class SentenceTransformerEmbedding(BaseEmbeddingModel):
+    """Embedding model using sentence-transformers (paper's default).
+
+    Uses ``dunzhang/stella_en_1.5B_v5`` as recommended in the paper
+    (Section 4.3), or any other SentenceTransformer-compatible model.
+
+    Requires:
+        pip install sentence-transformers
+
+    Example:
+        >>> emb = SentenceTransformerEmbedding("dunzhang/stella_en_1.5B_v5")
+        >>> score = emb.compute_similarity("math problem", "arithmetic task")
+    """
+
+    def __init__(self, model_name: str = "dunzhang/stella_en_1.5B_v5"):
+        try:
+            from sentence_transformers import SentenceTransformer, util
+        except ImportError:
+            raise ImportError(
+                "sentence-transformers is required for SentenceTransformerEmbedding. "
+                "Install with: pip install sentence-transformers"
+            )
+        self._model = SentenceTransformer(model_name, trust_remote_code=True)
+        self._util = util
+
+    def compute_similarity(self, text_a: str, text_b: str) -> float:
+        emb_a = self._model.encode(text_a, convert_to_tensor=True)
+        emb_b = self._model.encode(text_b, convert_to_tensor=True)
+        return float(self._util.pytorch_cos_sim(emb_a, emb_b).item())
+
+
+class LLMBasedSimilarity(BaseEmbeddingModel):
+    """Fallback similarity estimator using the LLM itself.
+
+    When sentence-transformers is unavailable, this uses the LLM to
+    estimate semantic similarity between two task descriptions.
+
+    Note: Less accurate than dedicated embedding models, but requires
+    no additional dependencies. Each call consumes one LLM inference.
+
+    Example:
+        >>> llm = GPTClient()
+        >>> emb = LLMBasedSimilarity(llm)
+        >>> score = emb.compute_similarity("math problem", "arithmetic task")
+    """
+
+    SIMILARITY_PROMPT = (
+        "Rate the semantic similarity between these two task descriptions "
+        "on a scale from 0.0 (completely different) to 1.0 (identical). "
+        "Respond with ONLY a decimal number, nothing else.\n\n"
+        "Text A:\n{text_a}\n\n"
+        "Text B:\n{text_b}\n\n"
+        "Similarity score:"
+    )
+
+    def __init__(self, llm: BaseLLM):
+        self._llm = llm
+
+    def compute_similarity(self, text_a: str, text_b: str) -> float:
+        prompt = self.SIMILARITY_PROMPT.format(text_a=text_a, text_b=text_b)
+        response = self._llm.generate(prompt, temperature=0.0)
+        try:
+            score = float(response.content.strip())
+            return max(0.0, min(1.0, score))
+        except (ValueError, TypeError):
+            logger.warning(
+                "LLMBasedSimilarity could not parse score from: %s. "
+                "Defaulting to 0.5.",
+                response.content.strip()[:100],
+            )
+            return 0.5
+
+
+# ─────────────────────────────────────────────────────────
+# RoT Baseline (with CPM)
+# ─────────────────────────────────────────────────────────
+
 class RoT(BaseBaseline):
     """Reversal of Thought (RoT) prompting baseline.
 
-    Implements the full PGRR pipeline from Algorithm 1 of the paper:
-      1. Generate K candidate reverse-reasoned task definitions.
+    Implements the full pipeline from the paper (Algorithms 1 & 2):
+      1. Generate K candidate reverse-reasoned task definitions (PGRR).
       2. Evaluate all pairwise preferences via LLM-as-judge.
       3. Apply transitive closure to the preference matrix.
       4. Select the optimal candidate (highest combined score).
-      5. Instantiate the optimal prompt to solve the target question.
+      5. Run CPM to assess knowledge boundary and refine the prompt.
+      6. Instantiate the refined prompt to solve the target question.
 
     Attributes:
         warmup: Number of reverse reasoning candidates (K in paper).
         candidate_temperature: Sampling temperature for candidate generation.
         instantiation_temperature: Sampling temperature for final reasoning.
         demos: Few-shot demonstrations for reverse reasoning.
+        embedding_model: Optional embedding model for CPM similarity.
+        similarity_threshold: δ threshold for known/unknown classification.
+        task_prompt: Original benchmark/task prompt for CPM comparison.
 
     Example:
         >>> llm = GeminiClient()
-        >>> baseline = RoT(llm, warmup=5, demos="Input:1,5,5,5; Output:5*(5-1/5)=24")
+        >>> emb = SentenceTransformerEmbedding()
+        >>> baseline = RoT(
+        ...     llm, warmup=5,
+        ...     demos="Input:1,5,5,5; Output:5*(5-1/5)=24",
+        ...     embedding_model=emb,
+        ...     task_prompt="Let's play a game called 24..."
+        ... )
         >>> response = baseline.run("2, 5, 8, 11")
         >>> print(response.final_answer)
     """
@@ -116,6 +270,9 @@ class RoT(BaseBaseline):
         candidate_temperature: float = 0.7,
         instantiation_temperature: float = 0.1,
         demos: Optional[str] = None,
+        embedding_model: Optional[BaseEmbeddingModel] = None,
+        similarity_threshold: float = 0.7,
+        task_prompt: Optional[str] = None,
     ):
         """Initialize RoT baseline.
 
@@ -128,12 +285,24 @@ class RoT(BaseBaseline):
                                        (lower → more deterministic reasoning).
             demos: Few-shot demonstration string used for reverse reasoning.
                    Format: "Input:... Output:..."
+            embedding_model: Embedding model for CPM knowledge boundary
+                            assessment. If None, CPM is skipped and the
+                            pipeline falls back to direct instantiation
+                            (equivalent to w/o CPM in the ablation study).
+            similarity_threshold: δ threshold for known/unknown boundary
+                                  (paper recommends 0.6–0.8, default 0.7).
+            task_prompt: Original benchmark/task prompt P used by CPM to
+                        compare against the reverse-reasoned P*. Required
+                        when embedding_model is provided.
         """
         super().__init__(llm, baseline_name="RoT")
         self.warmup = warmup
         self.candidate_temperature = candidate_temperature
         self.instantiation_temperature = instantiation_temperature
         self.demos = demos or "Input:1, 5, 5, 5; Output:5× (5 − 1 ÷ 5) = 24"
+        self.embedding_model = embedding_model
+        self.similarity_threshold = similarity_threshold
+        self.task_prompt = task_prompt
 
     # ──────────────────────────────────────────
     # Stage 1: Reverse Reasoning Warm-up
@@ -248,7 +417,7 @@ class RoT(BaseBaseline):
 
         Args:
             candidates: List of K candidate strings.
-            p_pre: Preference matrix from _build_preference_matrix.
+            p_pre: Preference matrix from build_preference_matrix.
 
         Returns:
             Tuple of (optimal_index, optimal_candidate_string).
@@ -269,14 +438,149 @@ class RoT(BaseBaseline):
         return optimal_idx, candidates[optimal_idx]
 
     # ──────────────────────────────────────────
-    # Stage 3: Instantiation
+    # Stage 3: Cognitive Preference Manager
+    # ──────────────────────────────────────────
+
+    @staticmethod
+    def extract_task_definition(text: str) -> str:
+        """Extract the task definition section from a prompt or LLM output.
+
+        Looks for common markers like "Task Definition:", "Task Defination:",
+        or falls back to the full text if no marker is found.
+
+        Args:
+            text: The full prompt or reverse-reasoned output.
+
+        Returns:
+            The extracted task definition string.
+        """
+        # Try multiple common patterns from the paper's outputs
+        patterns = [
+            r"(?:Task\s+Defin[ai]tion)\s*[:：]\s*(.*?)(?=\n\s*(?:Logical|Pseudocode|Case|Input-Output|$))",
+            r"(?:Task\s+Defin[ai]tion)\s*[:：]\s*(.*?)(?:\n\n|\Z)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+            if match:
+                extracted = match.group(1).strip()
+                if len(extracted) > 10:  # Ensure it's meaningful
+                    return extracted
+
+        # Fallback: return first ~500 chars (enough for similarity)
+        return text[:500].strip()
+
+    def compute_knowledge_boundary(
+        self,
+        task_prompt: str,
+        llm_taste: str,
+    ) -> Tuple[str, float]:
+        """Assess whether the task is known or unknown (Eq. 7 from paper).
+
+        Computes embedding similarity between the original task definition
+        (P_task) and the reverse-reasoned task definition (P*_task).
+
+        Args:
+            task_prompt: The original benchmark/task prompt P.
+            llm_taste: The optimal reverse-reasoned LLM-taste prompt P*.
+
+        Returns:
+            Tuple of (boundary_signal, similarity_score) where
+            boundary_signal is "known" or "unknown".
+        """
+        p_task = self.extract_task_definition(task_prompt)
+        p_star_task = self.extract_task_definition(llm_taste)
+
+        similarity = self.embedding_model.compute_similarity(p_task, p_star_task)
+
+        if similarity >= self.similarity_threshold:
+            return "known", similarity
+        else:
+            return "unknown", similarity
+
+    def aggregate_known(self, task_prompt: str, llm_taste: str) -> str:
+        """Solution Logic Aggregation for known tasks (Algorithm 2, line 4-6).
+
+        Merges beneficial aspects from the original prompt P with the
+        LLM-taste prompt P* to create the final refined prompt P_final.
+
+        Args:
+            task_prompt: Original benchmark/task prompt P.
+            llm_taste: Optimal reverse-reasoned LLM-taste prompt P*.
+
+        Returns:
+            The aggregated P_final string.
+        """
+        prompt = CPM_KNOWN_PROMPT.format(
+            llm_taste=llm_taste,
+            task_prompt=task_prompt,
+        )
+        response = self.call_llm(prompt, temperature=0.0)
+        return response.content.strip()
+
+    def aggregate_unknown(self, task_prompt: str, llm_taste: str) -> str:
+        """Stylistic Template Aggregation for unknown tasks (Algorithm 2, line 8-10).
+
+        Extracts a cognitive preference template T from the LLM-taste prompt
+        and integrates meta-cognitive elements from the original prompt P
+        into T to construct the final prompt P_final.
+
+        Args:
+            task_prompt: Original benchmark/task prompt P.
+            llm_taste: Optimal reverse-reasoned LLM-taste prompt P*.
+
+        Returns:
+            The aggregated P_final string.
+        """
+        prompt = CPM_UNKNOWN_PROMPT.format(
+            llm_taste=llm_taste,
+            task_prompt=task_prompt,
+        )
+        response = self.call_llm(prompt, temperature=0.0)
+        return response.content.strip()
+
+    def _run_cpm(
+        self,
+        task_prompt: str,
+        llm_taste: str,
+    ) -> Tuple[str, str, float]:
+        """Execute the full Cognitive Preference Manager (Algorithm 2).
+
+        Assesses the knowledge boundary and applies the appropriate
+        aggregation strategy to produce the final refined prompt.
+
+        Args:
+            task_prompt: Original benchmark/task prompt P.
+            llm_taste: Optimal reverse-reasoned LLM-taste prompt P*.
+
+        Returns:
+            Tuple of (p_final, boundary_signal, similarity_score).
+        """
+        boundary, similarity = self.compute_knowledge_boundary(
+            task_prompt, llm_taste
+        )
+
+        if boundary == "known":
+            p_final = self.aggregate_known(task_prompt, llm_taste)
+        else:
+            p_final = self.aggregate_unknown(task_prompt, llm_taste)
+
+        return p_final, boundary, similarity
+
+    @property
+    def cpm_enabled(self) -> bool:
+        """Whether CPM is active (requires embedding_model and task_prompt)."""
+        return self.embedding_model is not None and self.task_prompt is not None
+
+    # ──────────────────────────────────────────
+    # Stage 4: Instantiation
     # ──────────────────────────────────────────
 
     def build_instantiation_prompt(self, llm_taste: str) -> str:
         """Build the instantiation system prompt with the optimal LLM taste.
 
         Args:
-            llm_taste: The optimal reverse-reasoned task definition.
+            llm_taste: The optimal (possibly CPM-refined) task definition.
 
         Returns:
             Formatted instantiation prompt string.
@@ -325,6 +629,7 @@ class RoT(BaseBaseline):
         system_prompt: Optional[str] = None,
         instruction: Optional[str] = None,
         temperature: float = 0.0,
+        task_prompt: Optional[str] = None,
         **kwargs,
     ) -> BaselineResponse:
         """Execute the full RoT pipeline on the given question.
@@ -332,7 +637,8 @@ class RoT(BaseBaseline):
         Pipeline stages:
         1. Generate K candidate task definitions (Reverse Reasoning Warm-up)
         2. Evaluate pairwise preferences and select optimal candidate
-        3. Instantiate the optimal prompt to solve the question
+        3. Run CPM to assess knowledge boundary and refine prompt (if enabled)
+        4. Instantiate the (refined) prompt to solve the question
 
         Args:
             question: The input question or problem to solve.
@@ -341,15 +647,22 @@ class RoT(BaseBaseline):
             instruction: Optional task-specific instruction (unused in RoT).
             temperature: Overrides instantiation_temperature if provided
                         and non-zero.
+            task_prompt: Per-call override for self.task_prompt. The original
+                        benchmark prompt P used by CPM for knowledge boundary
+                        assessment. If provided, overrides the instance-level
+                        task_prompt for this run only.
             **kwargs: Additional arguments for interface compatibility.
 
         Returns:
             BaselineResponse containing the answer, full reasoning trace,
-            and detailed metadata about the PGRR process.
+            and detailed metadata about the PGRR + CPM process.
         """
         self.reset_counters()
         intermediate_steps = []
         inst_temp = temperature if temperature > 0 else self.instantiation_temperature
+
+        # Resolve task_prompt: per-call override > instance-level
+        effective_task_prompt = task_prompt or self.task_prompt
 
         # ── Stage 1: Reverse Reasoning Warm-up ──
         candidates = self.generate_candidates()
@@ -366,8 +679,28 @@ class RoT(BaseBaseline):
             f"[Stage 2: Preference Selection] Selected candidate {optimal_idx + 1}"
         )
 
-        # ── Stage 3: Instantiation ──
-        instantiation_sys = self.build_instantiation_prompt(llm_taste)
+        # ── Stage 3: Cognitive Preference Manager ──
+        cpm_boundary = None
+        cpm_similarity = None
+
+        if self.embedding_model is not None and effective_task_prompt is not None:
+            p_final, cpm_boundary, cpm_similarity = self._run_cpm(
+                effective_task_prompt, llm_taste
+            )
+            intermediate_steps.append(
+                f"[Stage 3: CPM] Boundary={cpm_boundary} "
+                f"(similarity={cpm_similarity:.4f}, δ={self.similarity_threshold})"
+            )
+            intermediate_steps.append(f"[CPM P_final]\n{p_final}")
+        else:
+            # CPM disabled: use raw LLM-taste (equivalent to w/o CPM ablation)
+            p_final = llm_taste
+            intermediate_steps.append(
+                "[Stage 3: CPM] Skipped (no embedding_model or task_prompt)"
+            )
+
+        # ── Stage 4: Instantiation ──
+        instantiation_sys = self.build_instantiation_prompt(p_final)
         question_prompt = f"{instantiation_sys}\n\n{question}"
         response = self.call_llm(question_prompt, temperature=inst_temp)
         final_answer, thinking = self.parse_instantiation_response(
@@ -375,15 +708,21 @@ class RoT(BaseBaseline):
         )
 
         intermediate_steps.append(
-            f"[Stage 3: Instantiation]\n{response.content.strip()}"
+            f"[Stage 4: Instantiation]\n{response.content.strip()}"
         )
 
         # Build reasoning trace
         reasoning_trace = (
             f"[RoT Warm-up] Selected candidate {optimal_idx + 1}/{self.warmup}\n"
             f"[LLM Taste]\n{llm_taste}\n\n"
-            f"[Thinking]\n{thinking}"
         )
+        if cpm_boundary is not None:
+            reasoning_trace += (
+                f"[CPM] Boundary: {cpm_boundary} "
+                f"(similarity: {cpm_similarity:.4f})\n"
+                f"[P_final]\n{p_final}\n\n"
+            )
+        reasoning_trace += f"[Thinking]\n{thinking}"
 
         # Compute preference score summary
         k = len(candidates)
@@ -407,5 +746,9 @@ class RoT(BaseBaseline):
                 "optimal_candidate_index": optimal_idx,
                 "preference_scores": pref_scores,
                 "demos": self.demos,
+                "cpm_enabled": self.cpm_enabled,
+                "cpm_boundary": cpm_boundary,
+                "cpm_similarity": cpm_similarity,
+                "similarity_threshold": self.similarity_threshold,
             },
         )
