@@ -77,26 +77,26 @@ class TestRoTPreferenceEvaluation(unittest.TestCase):
     def test_preference_chooses_a(self):
         llm = SequentialMockLLM(["A"])
         baseline = RoT(llm, warmup=1)
-        score = baseline._evaluate_preference("candidate_a", "candidate_b")
+        score = baseline.evaluate_preference("candidate_a", "candidate_b")
         self.assertEqual(score, 1.0)
 
     def test_preference_chooses_b(self):
         llm = SequentialMockLLM(["B"])
         baseline = RoT(llm, warmup=1)
-        score = baseline._evaluate_preference("candidate_a", "candidate_b")
+        score = baseline.evaluate_preference("candidate_a", "candidate_b")
         self.assertEqual(score, 0.0)
 
     def test_preference_ambiguous_fallback(self):
         llm = SequentialMockLLM(["I think both are good"])
         baseline = RoT(llm, warmup=1)
-        score = baseline._evaluate_preference("candidate_a", "candidate_b")
+        score = baseline.evaluate_preference("candidate_a", "candidate_b")
         # No A or B found, should return 0.5
         self.assertEqual(score, 0.5)
 
     def test_preference_with_verbose_response(self):
         llm = SequentialMockLLM(["A is clearly better because..."])
         baseline = RoT(llm, warmup=1)
-        score = baseline._evaluate_preference("candidate_a", "candidate_b")
+        score = baseline.evaluate_preference("candidate_a", "candidate_b")
         self.assertEqual(score, 1.0)
 
 
@@ -111,10 +111,10 @@ class TestRoTPreferenceMatrix(unittest.TestCase):
         llm = SequentialMockLLM(responses)
         baseline = RoT(llm, warmup=2)
 
-        candidates = baseline._generate_candidates()
+        candidates = baseline.generate_candidates()
         self.assertEqual(len(candidates), 2)
 
-        p_pre = baseline._build_preference_matrix(candidates)
+        p_pre = baseline.build_preference_matrix(candidates)
         self.assertEqual(p_pre[(0, 1)], 1.0)
         self.assertEqual(p_pre[(1, 0)], 0.0)
 
@@ -125,8 +125,8 @@ class TestRoTPreferenceMatrix(unittest.TestCase):
         llm = SequentialMockLLM(responses)
         baseline = RoT(llm, warmup=3)
 
-        candidates = baseline._generate_candidates()
-        p_pre = baseline._build_preference_matrix(candidates)
+        candidates = baseline.generate_candidates()
+        p_pre = baseline.build_preference_matrix(candidates)
 
         # Direct preferences (before transitivity)
         self.assertEqual(p_pre[(0, 1)], 1.0)  # 0 > 1
@@ -153,7 +153,7 @@ class TestRoTOptimalSelection(unittest.TestCase):
         # strong_candidate (index 1) is preferred over weak (index 0)
         p_pre = {(0, 1): 0.0, (1, 0): 1.0}
 
-        idx, text = baseline._select_optimal(candidates, p_pre)
+        idx, text = baseline.select_optimal(candidates, p_pre)
         self.assertEqual(idx, 1)
         self.assertEqual(text, "strong_candidate")
 
@@ -165,7 +165,7 @@ class TestRoTOptimalSelection(unittest.TestCase):
         candidates = ["only_candidate"]
         p_pre = {}
 
-        idx, text = baseline._select_optimal(candidates, p_pre)
+        idx, text = baseline.select_optimal(candidates, p_pre)
         self.assertEqual(idx, 0)
         self.assertEqual(text, "only_candidate")
 
@@ -181,7 +181,7 @@ class TestRoTResponseParsing(unittest.TestCase):
             "** Thinking **: First we add 2+5=7, then 8-7=1, then 11*1=11.\n\n"
             "** Answer **: (2+5) * 8 - 11 = 29"
         )
-        answer, thinking = baseline._parse_instantiation_response(response)
+        answer, thinking = baseline.parse_instantiation_response(response)
 
         self.assertIn("2+5", thinking)
         self.assertIn("(2+5)", answer)
@@ -191,7 +191,7 @@ class TestRoTResponseParsing(unittest.TestCase):
         baseline = RoT(llm)
 
         response = "** Answer **: 42"
-        answer, thinking = baseline._parse_instantiation_response(response)
+        answer, thinking = baseline.parse_instantiation_response(response)
 
         self.assertEqual(answer, "42")
         self.assertEqual(thinking, "")
@@ -202,7 +202,7 @@ class TestRoTResponseParsing(unittest.TestCase):
         baseline = RoT(llm)
 
         response = "The solution is 24."
-        answer, thinking = baseline._parse_instantiation_response(response)
+        answer, thinking = baseline.parse_instantiation_response(response)
 
         self.assertEqual(answer, "The solution is 24.")
 

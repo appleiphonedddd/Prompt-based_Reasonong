@@ -139,7 +139,7 @@ class RoT(BaseBaseline):
     # Stage 1: Reverse Reasoning Warm-up
     # ──────────────────────────────────────────
 
-    def _generate_candidates(self) -> List[str]:
+    def generate_candidates(self) -> List[str]:
         """Generate K candidate task definitions via reverse reasoning.
 
         Each candidate is produced by prompting the LLM with the
@@ -162,7 +162,7 @@ class RoT(BaseBaseline):
     # Stage 2: Pairwise Preference Evaluation
     # ──────────────────────────────────────────
 
-    def _evaluate_preference(self, candidate_a: str, candidate_b: str) -> float:
+    def evaluate_preference(self, candidate_a: str, candidate_b: str) -> float:
         """Evaluate pairwise preference between two candidates.
 
         Uses the LLM as a judge to decide which candidate instruction
@@ -195,7 +195,7 @@ class RoT(BaseBaseline):
                 return 0.0
             return 0.5
 
-    def _build_preference_matrix(
+    def build_preference_matrix(
         self, candidates: List[str]
     ) -> Dict[Tuple[int, int], float]:
         """Build the full pairwise preference matrix with transitive closure.
@@ -217,7 +217,7 @@ class RoT(BaseBaseline):
         # Step 1: Direct pairwise comparisons
         for i in range(k - 1):
             for j in range(i + 1, k):
-                score = self._evaluate_preference(candidates[i], candidates[j])
+                score = self.evaluate_preference(candidates[i], candidates[j])
                 p_pre[(i, j)] = score
                 p_pre[(j, i)] = 1.0 - score
 
@@ -234,7 +234,7 @@ class RoT(BaseBaseline):
 
         return p_pre
 
-    def _select_optimal(
+    def select_optimal(
         self,
         candidates: List[str],
         p_pre: Dict[Tuple[int, int], float],
@@ -272,7 +272,7 @@ class RoT(BaseBaseline):
     # Stage 3: Instantiation
     # ──────────────────────────────────────────
 
-    def _build_instantiation_prompt(self, llm_taste: str) -> str:
+    def build_instantiation_prompt(self, llm_taste: str) -> str:
         """Build the instantiation system prompt with the optimal LLM taste.
 
         Args:
@@ -283,7 +283,7 @@ class RoT(BaseBaseline):
         """
         return INSTANTIATION_PROMPT.format(llm_taste=llm_taste)
 
-    def _parse_instantiation_response(self, response_text: str) -> Tuple[str, str]:
+    def parse_instantiation_response(self, response_text: str) -> Tuple[str, str]:
         """Parse the instantiation response to extract thinking and answer.
 
         Args:
@@ -352,7 +352,7 @@ class RoT(BaseBaseline):
         inst_temp = temperature if temperature > 0 else self.instantiation_temperature
 
         # ── Stage 1: Reverse Reasoning Warm-up ──
-        candidates = self._generate_candidates()
+        candidates = self.generate_candidates()
         intermediate_steps.append(
             f"[Stage 1: Reverse Reasoning] Generated {len(candidates)} candidates"
         )
@@ -360,17 +360,17 @@ class RoT(BaseBaseline):
             intermediate_steps.append(f"[Candidate {idx + 1}]\n{cand}")
 
         # ── Stage 2: Pairwise Preference Selection ──
-        p_pre = self._build_preference_matrix(candidates)
-        optimal_idx, llm_taste = self._select_optimal(candidates, p_pre)
+        p_pre = self.build_preference_matrix(candidates)
+        optimal_idx, llm_taste = self.select_optimal(candidates, p_pre)
         intermediate_steps.append(
             f"[Stage 2: Preference Selection] Selected candidate {optimal_idx + 1}"
         )
 
         # ── Stage 3: Instantiation ──
-        instantiation_sys = self._build_instantiation_prompt(llm_taste)
+        instantiation_sys = self.build_instantiation_prompt(llm_taste)
         question_prompt = f"{instantiation_sys}\n\n{question}"
         response = self.call_llm(question_prompt, temperature=inst_temp)
-        final_answer, thinking = self._parse_instantiation_response(
+        final_answer, thinking = self.parse_instantiation_response(
             response.content
         )
 
