@@ -25,7 +25,7 @@ Before running the deployment scripts, ensure your system meets the following ha
 
 - **Operating System**: Ubuntu 24.04.03 LTS (Linux-based)
 - **GPU**: NVIDIA GeForce RTX 5070 or higher (CUDA-enabled)
-- **CUDA Toolkit**: 12.x (ensure compatibility with your GPU driver)
+- **CUDA Toolkit**: 12.x (ensure compatibility with your GPU drivers)
 - **Docker**: Required for running local Ollama instances
 
 
