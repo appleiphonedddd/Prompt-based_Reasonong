@@ -18,7 +18,7 @@ Reference:
 - Yuan, J., Du, D., Zhang, H., Di, Z., & Naseem, U. (2025).
   "Reversal of Thought: Enhancing Large Language Models with
   Preference-Guided Reverse Reasoning Warm-up."
-  Proceedings of ACL 2025 (Main), pp. 19442–19459.
+  Proceedings of ACL 2025 (Main), pp. 19442-19459.
 
 Author: Egor Morozov
 """
@@ -391,8 +391,8 @@ class RoT(BaseBaseline):
                 p_pre[(j, i)] = 1.0 - score
 
         # Step 2: Transitive closure (Floyd–Warshall–style propagation)
-        for i in range(k):
-            for j in range(k):
+        for j in range(k):
+            for i in range(k):
                 if i == j:
                     continue
                 for m in range(k):
