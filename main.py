@@ -56,10 +56,19 @@ def build_baseline(args, client):
             propose_temperature=args.tot_propose_temperature,
             value_temperature=args.tot_value_temperature,
         )  # Reuse ToT's generation params for BoT
+    elif name == "bot":
+        return BoT(
+            llm=client,
+            similarity_threshold=args.bot_threshold,
+            buffer_path=args.buffer_path,
+            distill_temperature=args.bot_distill_temp,
+            instantiation_temperature=args.bot_instantiate_temp,
+            update_buffer=args.update_buffer,
+        )
 
     else:
         raise ValueError(f"Unknown baseline: '{args.baseline}'. "
-                         "Supported: rot, tot")
+                         "Supported: rot, tot, bot")
 
 def run(args):
     model_family = args.model.split(':')[0].lower()
@@ -160,8 +169,27 @@ if __name__ == "__main__":
         help="[ToT] Sampling temperature for state evaluation (0 = deterministic)",
     )
 
-   
     # ── BoT ──────────────────────────────────────────────────────────────────
+    parser.add_argument(
+        "--bot_threshold", type=float, default=0.6,
+        help="[BoT] Similarity threshold (δ) for template retrieval and updates",
+    )
+    parser.add_argument(
+        "--buffer_path", type=str, default="meta_buffer.json",
+        help="[BoT] Path to the JSON file for storing/loading thought-templates",
+    )
+    parser.add_argument(
+        "--bot_distill_temp", type=float, default=0.2,
+        help="[BoT] Temperature for problem distillation and template extraction",
+    )
+    parser.add_argument(
+        "--bot_instantiate_temp", type=float, default=0.1,
+        help="[BoT] Temperature for final reasoning instantiation",
+    )
+    parser.add_argument(
+        "--no_update_buffer", action="store_false", dest="update_buffer",
+        help="[BoT] Disable automatic buffer updating after solving",
+    )
 
     # ── GoT ──────────────────────────────────────────────────────────────────
     
