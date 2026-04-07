@@ -10,6 +10,7 @@ from models.qwen import QwenClient
 from baseline.RoT import RoT
 from baseline.ToT import ToT
 from baseline.BoT import BoT
+from baseline.GoT import GoT
 from utils.metrics import Efficiency, Accuracy
 from utils.get_mean_std import AccuracyStatistics
 
@@ -65,10 +66,20 @@ def build_baseline(args, client):
             instantiation_temperature=args.bot_instantiate_temp,
             update_buffer=args.update_buffer,
         )
+    elif name == "got":
+        return GoT(
+            client,
+            num_branches      = args.got_branches,
+            keep_best         = args.got_keep,
+            refine_rounds     = args.got_refine,
+            gen_temperature   = args.got_gen_temp,
+            score_temperature = args.got_score_temp,
+            agg_temperature   = args.got_agg_temp,
+        )
 
     else:
         raise ValueError(f"Unknown baseline: '{args.baseline}'. "
-                         "Supported: rot, tot, bot")
+                         "Supported: rot, tot, bot, got")
 
 def run(args):
     model_family = args.model.split(':')[0].lower()
@@ -192,7 +203,31 @@ if __name__ == "__main__":
     )
 
     # ── GoT ──────────────────────────────────────────────────────────────────
-    
+    parser.add_argument(
+        "--got_branches", type=int, default=3,
+        help="[GoT] Number of branches to explore at each step",
+    )
+    parser.add_argument(
+        "--got_keep", type=int, default=1,
+        help="[GoT] Number of branches to keep after each refinement round",
+    )
+    parser.add_argument(
+        "--got_refine", type=int, default=2,
+        help="[GoT] Number of refinement rounds to perform",
+    )
+    parser.add_argument(
+        "--got_gen_temp", type=float, default=0.7,
+        help="[GoT] Sampling temperature for branch generation",
+    )
+    parser.add_argument(
+        "--got_score_temp", type=float, default=0.0,
+        help="[GoT] Sampling temperature for branch scoring (0 = deterministic)",
+    )
+    parser.add_argument(
+        "--got_agg_temp", type=float, default=0.0,
+        help="[GoT] Sampling temperature for final answer aggregation (0 = deterministic)",
+    )
+
     args = parser.parse_args()
 
     for arg in vars(args):
