@@ -9,6 +9,7 @@ from models.gemini import GeminiClient
 from models.qwen import QwenClient
 from baseline.RoT import RoT
 from baseline.ToT import ToT
+from baseline.BoT import BoT
 from utils.metrics import Efficiency, Accuracy
 from utils.get_mean_std import AccuracyStatistics
 
@@ -54,12 +55,11 @@ def build_baseline(args, client):
             value_threshold=args.tot_value_threshold,
             propose_temperature=args.tot_propose_temperature,
             value_temperature=args.tot_value_temperature,
-        )
+        )  # Reuse ToT's generation params for BoT
 
     else:
         raise ValueError(f"Unknown baseline: '{args.baseline}'. "
                          "Supported: rot, tot")
-
 
 def run(args):
     model_family = args.model.split(':')[0].lower()
@@ -160,6 +160,11 @@ if __name__ == "__main__":
         help="[ToT] Sampling temperature for state evaluation (0 = deterministic)",
     )
 
+   
+    # ── BoT ──────────────────────────────────────────────────────────────────
+
+    # ── GoT ──────────────────────────────────────────────────────────────────
+    
     args = parser.parse_args()
 
     for arg in vars(args):
