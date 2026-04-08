@@ -7,12 +7,17 @@ from models.deepseek import DeepSeekClient
 from models.llama import LlamaClient
 from models.gemini import GeminiClient
 from models.qwen import QwenClient
+from baseline.Standard import Input
+from baseline.CoT import ZeroShotCoT, ZeroShotCoTSinglePass
 from baseline.RoT import RoT
 from baseline.ToT import ToT
 from baseline.BoT import BoT
 from baseline.GoT import GoT
 from utils.metrics import Efficiency, Accuracy
 from utils.get_mean_std import AccuracyStatistics
+from benchmark import DATASET_REGISTRY, DatasetBase
+from benchmark.GameOf24 import GameOf24
+from benchmark.MGSM import MSGM
 
 logger = logging.getLogger()
 logger.setLevel(logging.ERROR)
