@@ -19,8 +19,8 @@ Author: Egor Morozov
 """
 
 from benchmark.datasetbase import DatasetBase, Problem, EvaluationResult
-from benchmark.GameOf24 import GameOf24
-from benchmark.MGSM import MGSM
+from benchmark.GameOf24.gameof24 import GameOf24
+from benchmark.MGSM.mgsm import MGSM
 
 # Registry used by main.py for dynamic instantiation
 DATASET_REGISTRY: dict[str, type[DatasetBase]] = {
