@@ -1,5 +1,6 @@
 import argparse
 import logging
+import time
 from models.gpt import GPTClient
 from models.deepseek import DeepSeekClient
 from models.llama import LlamaClient
@@ -13,6 +14,7 @@ from baseline.GoT import GoT
 from baseline.Standard import Input
 from utils.metrics import Efficiency, Accuracy
 from utils.get_mean_std import AccuracyStatistics
+from benchmark import DATASET_REGISTRY
 
 logging.getLogger().setLevel(logging.ERROR)
 
@@ -28,6 +30,9 @@ MODEL_REGISTRY: dict[str, type] = {
 
 # To add a new baseline: insert one entry here (class, kwargs-extractor).
 BASELINE_REGISTRY: dict[str, tuple] = {
+    "standard":       (Input,                  lambda _: {}),
+    "zerocot":        (ZeroShotCoT,            lambda _: {}),
+    "zerocot_single": (ZeroShotCoTSinglePass,  lambda _: {}),
     "rot": (RoT, lambda a: dict(
         warmup=a.warmup,
         candidate_temperature=a.candidate_temperature,
@@ -81,6 +86,11 @@ class Evaluator:
                 f"Baseline '{self.args.baseline}' not supported. "
                 f"Supported: {list(BASELINE_REGISTRY)}"
             )
+        if self.args.benchmark.lower() not in DATASET_REGISTRY:
+            raise ValueError(
+                f"Benchmark '{self.args.benchmark}' not supported. "
+                f"Supported: {list(DATASET_REGISTRY)}"
+            )
 
     def _build_client(self):
         return MODEL_REGISTRY[self.model_family](model_name=self.args.model)
@@ -89,16 +99,46 @@ class Evaluator:
         cls, extract_kwargs = BASELINE_REGISTRY[self.args.baseline.lower()]
         return cls(llm=client, **extract_kwargs(self.args))
 
-    def _run_once(self, run_index: int) -> float:
-        print(f"[Run {run_index}/{self.args.num_runs}] ", end="")
+    def _build_dataset(self):
+        benchmark_key = self.args.benchmark.lower()
+        cls = DATASET_REGISTRY[benchmark_key]
+        if benchmark_key == "mgsm":
+            dataset = cls(language=self.args.mgsm_language)
+        else:
+            dataset = cls()
+        dataset.load_dataset()
+        return dataset
+
+    def _run_once(self, run_index: int, dataset, efficiency: Efficiency) -> float:
+        print(f"\n[Run {run_index}/{self.args.num_runs}]")
         client   = self._build_client()
-        baseline = self._build_baseline(client)   # noqa: F841
-
+        baseline = self._build_baseline(client)
         accuracy = Accuracy()
-        acc = accuracy.get_accuracy()
-        print(f"Accuracy: {acc:.2f}%")
 
-        efficiency = Efficiency()                  # noqa: F841
+        n = len(dataset)
+        if self.args.num_samples and self.args.num_samples < n:
+            n = self.args.num_samples
+
+        task_times: list[float] = []
+        for i in range(n):
+            problem = dataset.get_problem(i)
+            t0 = time.perf_counter()
+            response = baseline.run(
+                problem.question,
+                system_prompt=dataset.get_system_prompt(),
+                instruction=dataset.get_instruction(),
+            )
+            elapsed = time.perf_counter() - t0
+            task_times.append(elapsed)
+
+            result = dataset.evaluate_answer(response.final_answer, problem.ground_truth)
+            accuracy.record(result.is_correct)
+            mark = "✓" if result.is_correct else "✗"
+            print(f"  [{i + 1}/{n}] {mark}  ({elapsed:.1f}s)  answer={response.final_answer!r}")
+
+        efficiency.record_sample(task_times)
+        acc = accuracy.get_accuracy()
+        print(f"  Accuracy: {acc:.2f}%")
         return acc
 
     def run(self) -> None:
@@ -109,11 +149,17 @@ class Evaluator:
         print(f"Baseline:       {args.baseline}")
         print(f"Number of Runs: {args.num_runs}")
 
+        dataset = self._build_dataset()
+        n = min(args.num_samples, len(dataset)) if args.num_samples else len(dataset)
+        print(f"Questions:      {n}")
+        efficiency = Efficiency(num_tasks=n)
+
         stats = AccuracyStatistics()
         for i in range(1, args.num_runs + 1):
-            stats.add_result(self._run_once(i))
+            stats.add_result(self._run_once(i, dataset, efficiency))
 
         stats.print_summary(baseline_name=args.baseline)
+        print(f"Avg time/question: {efficiency.get_T():.2f}s  (over {efficiency.get_M()} run(s))")
         print("\nAll done!")
 
 
@@ -121,14 +167,18 @@ class Evaluator:
 # To add a new baseline: add one _add_<name>_args function and call it below.
 
 def _add_general_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--model",     default="qwen2.5:14b",
+    parser.add_argument("--model",        default="qwen2.5:14b",
                         help="Model name (prefix = provider, e.g. 'gemini:...')")
-    parser.add_argument("--benchmark", default="gameof24",
+    parser.add_argument("--benchmark",    default="gameof24",
                         help="Benchmark / dataset name")
-    parser.add_argument("--baseline",  default="ZeroCoT",
-                        help="Baseline: rot | tot | bot | got")
-    parser.add_argument("--num_runs",  type=int, default=1,
+    parser.add_argument("--baseline",     default="zerocot",
+                        help="Baseline: standard | zerocot | zerocot_single | rot | tot | bot | got")
+    parser.add_argument("--num_runs",     type=int, default=1,
                         help="Independent experiment runs")
+    parser.add_argument("--num_samples",  type=int, default=None,
+                        help="Max questions to evaluate per run (None = full dataset)")
+    parser.add_argument("--mgsm_language", default="en",
+                        help="Language for MGSM benchmark (en|de|fr|es|ru|zh|ja|th|sw|bn)")
 
 
 def _add_rot_args(parser: argparse.ArgumentParser) -> None:
