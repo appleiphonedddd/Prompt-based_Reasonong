@@ -37,14 +37,19 @@ class Efficiency:
         self.samples.append(arr)
     
     def get_T(self) -> float:
-        
+
         """
-        Compute T exactly as Eq.(9):
-            T = (1/N) * sum_{i=1..M} sum_{j=1..N} T_{ij}
+        Compute the average time per task per run:
+            T = (1 / (M * N)) * sum_{i=1..M} sum_{j=1..N} T_{ij}
+
+        This is the mean wall-clock time for a single task, averaged
+        across all M runs and all N tasks in each run.
         """
 
+        if not self.samples:
+            return 0.0
         total_time = float(np.sum(self.samples))
-        return total_time / self.num_tasks
+        return total_time / (self.num_tasks * len(self.samples))
 
     def get_M(self) -> int:
         

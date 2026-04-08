@@ -22,10 +22,14 @@ from benchmark.datasetbase import DatasetBase, Problem, EvaluationResult
 from benchmark.GameOf24.gameof24 import GameOf24
 from benchmark.MGSM.mgsm import MGSM
 
-# Registry used by main.py for dynamic instantiation
-DATASET_REGISTRY: dict[str, type[DatasetBase]] = {
-    "gameof24": GameOf24,
-    "mgsm":     MGSM,
+# Registry used by main.py for dynamic instantiation.
+# Format: { key: (DatasetClass, kwargs_extractor) }
+# kwargs_extractor receives the parsed argparse.Namespace and returns a dict
+# of keyword arguments to pass to the dataset constructor.
+# To add a new dataset: insert one entry here — no changes to main.py needed.
+DATASET_REGISTRY: dict[str, tuple] = {
+    "gameof24": (GameOf24, lambda _: {}),
+    "mgsm":     (MGSM,     lambda a: {"language": a.mgsm_language}),
 }
 
 __all__ = [

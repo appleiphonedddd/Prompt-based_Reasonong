@@ -335,9 +335,14 @@ class ToT(BaseBaseline):
                 log.append(f"  Thought: '{node.thought[:60]}...' | Score: {node.value_score:.2f}")
 
             # ── Check for solved states ──
-            solved = [n for n in candidates if n.state == "24" or
-                      Value.from_text("sure") == Value(int(n.value_score))
-                      and step == self.max_steps]
+            # Compare numeric scores directly to avoid ValueError from Value(int(avg))
+            # when the average score falls on an unmapped integer (e.g. 1).
+            sure_val = float(Value.SURE.value)
+            solved = [
+                n for n in candidates
+                if n.state == "24"
+                or (n.value_score >= sure_val and step == self.max_steps)
+            ]
             if solved:
                 best_terminal = max(solved, key=lambda n: n.value_score)
                 log.append(f"[BFS step {step}] ✓ Solution node found.")
@@ -480,17 +485,24 @@ class ToT(BaseBaseline):
         """
         self.reset_counters()
 
-        propose_temp = temperature if temperature > 0 else self.propose_temperature
-        self.propose_temperature = propose_temp   # allow per-call override
+        # Use a local variable so self.propose_temperature is never mutated.
+        propose_temp = temperature if temperature > 0.0 else self.propose_temperature
 
         # Build the root node
         root = ThoughtNode(state=question.strip(), depth=0)
 
         # ── Search ──────────────────────────
-        if self.search_algorithm == "dfs":
-            best_node, search_log = self.dfs(root)
-        else:
-            best_node, search_log = self.bfs(root)
+        # Temporarily swap temperature so generate_thoughts picks it up,
+        # then restore the original value afterwards.
+        _orig_propose_temp = self.propose_temperature
+        self.propose_temperature = propose_temp
+        try:
+            if self.search_algorithm == "dfs":
+                best_node, search_log = self.dfs(root)
+            else:
+                best_node, search_log = self.bfs(root)
+        finally:
+            self.propose_temperature = _orig_propose_temp
 
         # ── Answer extraction ────────────────
         final_answer = self.extract_final_answer(root, best_node, question)

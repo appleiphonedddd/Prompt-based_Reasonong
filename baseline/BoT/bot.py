@@ -243,7 +243,7 @@ class BufferManager:
         self.llm = llm
         self.threshold = similarity_threshold
         self.distill_temperature = distill_temperature
-        # Plain instance attributes — NOT @property (FIX-A)
+        # Plain instance attributes — NOT @property (FIX-A: avoids RecursionError)
         self.total_input_tokens: int = 0
         self.total_output_tokens: int = 0
         self.num_calls: int = 0
@@ -263,7 +263,7 @@ class BufferManager:
         self.total_input_tokens += response.input_tokens
         self.total_output_tokens += response.output_tokens
         self.num_calls += 1
-        template = self.parse_template(response.content.strip())  # FIX-C: was self._parse_template
+        template = self.parse_template(response.content.strip())  # FIX-C
         if template is None:
             return None
         return template if self.meta_buffer.add(template, threshold=self.threshold) else None
@@ -366,7 +366,7 @@ class BoT(BaseBaseline):
         **kwargs: Any,
     ) -> BaselineResponse:
         self.reset_counters()
-        self.buffer_manager.reset_counters()   # FIX-D
+        self.buffer_manager.reset_counters()
         intermediate_steps: List[str] = []
 
         distilled_info = self.distil_problem(question, temperature=temperature)
@@ -394,12 +394,12 @@ class BoT(BaseBaseline):
 
         new_template: Optional[ThoughtTemplate] = None
         if self.update_buffer:
-            new_template = self.buffer_manager.distil_and_update(  # FIX-D
+            new_template = self.buffer_manager.distil_and_update(
                 distilled_info=distilled_info, solution=raw_solution
             )
-            self.total_input_tokens += self.buffer_manager.total_input_tokens   # FIX-D
-            self.total_output_tokens += self.buffer_manager.total_output_tokens  # FIX-D
-            self.num_llm_calls += self.buffer_manager.num_calls                  # FIX-D
+            self.total_input_tokens += self.buffer_manager.total_input_tokens
+            self.total_output_tokens += self.buffer_manager.total_output_tokens
+            self.num_llm_calls += self.buffer_manager.num_calls
             intermediate_steps.append(
                 f"[Stage 4: Buffer Manager] New template added "
                 f"(index={new_template.index}, category='{new_template.category}')."
@@ -424,7 +424,7 @@ class BoT(BaseBaseline):
                 "retrieved_template_index": template.index if template else None,
                 "retrieved_template_category": template.category if template else None,
                 "new_template_added": new_template is not None,
-                "meta_buffer_size": self.meta_buffer.size,   # FIX-D/FIX-E
+                "meta_buffer_size": self.meta_buffer.size,
                 "similarity_threshold": self.similarity_threshold,
                 "instantiation_temperature": self.instantiation_temperature,
                 "distill_temperature": self.distill_temperature,
@@ -437,6 +437,6 @@ class BoT(BaseBaseline):
             f"BoT(baseline_name='{self.baseline_name}', "
             f"llm={self.llm.__class__.__name__}, "
             f"similarity_threshold={self.similarity_threshold}, "
-            f"meta_buffer_size={self.meta_buffer.size}, "   # FIX-D/FIX-E
+            f"meta_buffer_size={self.meta_buffer.size}, "
             f"update_buffer={self.update_buffer})"
         )

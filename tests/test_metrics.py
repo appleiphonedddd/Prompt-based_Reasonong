@@ -81,17 +81,17 @@ class TestEfficiency(unittest.TestCase):
         self.assertAlmostEqual(self.efficiency.get_T(), 2.0)
 
     def test_get_T_multiple_samples(self):
-        """Test T calculation with multiple samples."""
-        # T = (1/N) * sum of all times
-        # N = 3
-        # Sample 1: [1.0, 2.0, 3.0] sum = 6.0
-        # Sample 2: [4.0, 5.0, 6.0] sum = 15.0
-        # Total sum = 21.0
-        # T = 21.0 / 3 = 7.0
+        """Test T calculation with multiple samples.
+
+        get_T() returns the mean time per task per run:
+            T = total_time / (N * M)
+        N=3 tasks, M=2 runs, total_time = 6.0+15.0 = 21.0
+        T = 21.0 / (3 * 2) = 3.5
+        """
         self.efficiency.record_sample([1.0, 2.0, 3.0])
         self.efficiency.record_sample([4.0, 5.0, 6.0])
-        
-        self.assertAlmostEqual(self.efficiency.get_T(), 7.0)
+
+        self.assertAlmostEqual(self.efficiency.get_T(), 3.5)
 
     def test_get_T_zero_times(self):
         """Test T calculation when all times are zero."""

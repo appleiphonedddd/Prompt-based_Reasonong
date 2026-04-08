@@ -295,6 +295,8 @@ class RoT(BaseBaseline):
                         compare against the reverse-reasoned P*. Required
                         when embedding_model is provided.
         """
+        if warmup < 1:
+            raise ValueError(f"warmup must be ≥ 1, got {warmup}")
         super().__init__(llm, baseline_name="RoT")
         self.warmup = warmup
         self.candidate_temperature = candidate_temperature
@@ -604,9 +606,11 @@ class RoT(BaseBaseline):
         thinking_match = thinking_pattern.search(response_text)
         thinking = thinking_match.group(1).strip() if thinking_match else ""
 
-        # Extract final answer
+        # Extract final answer — greedy match to end-of-string so that
+        # multi-line or multi-paragraph answers are not truncated at the
+        # first blank line (fixes Issue 9).
         answer_pattern = re.compile(
-            r"\*\*\s*Answer\s*\*\*\s*:\s*(.*?)(?=\n{2,}|\Z)",
+            r"\*\*\s*Answer\s*\*\*\s*:\s*(.*)\Z",
             re.DOTALL | re.IGNORECASE,
         )
         answer_match = answer_pattern.search(response_text)

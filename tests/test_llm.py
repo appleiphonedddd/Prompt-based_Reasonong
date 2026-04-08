@@ -14,7 +14,8 @@ class TestLLMClasses(unittest.TestCase):
     def setUp(self):
         self.fake_api_key = "sk-fake-key-123"
         # Common local URL used in your deepseek/llama/qwen implementations
-        self.local_llm_url = "http://192.168.50.132:11434/v1"
+        # Must match the base_url in config.yaml
+        self.local_llm_url = "http://localhost:11434/v1/"
 
     # ---------- Base / Interface tests ----------
 

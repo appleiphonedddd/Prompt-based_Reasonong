@@ -101,11 +101,8 @@ class Evaluator:
 
     def _build_dataset(self):
         benchmark_key = self.args.benchmark.lower()
-        cls = DATASET_REGISTRY[benchmark_key]
-        if benchmark_key == "mgsm":
-            dataset = cls(language=self.args.mgsm_language)
-        else:
-            dataset = cls()
+        cls, extract_kwargs = DATASET_REGISTRY[benchmark_key]
+        dataset = cls(**extract_kwargs(self.args))
         dataset.load_dataset()
         return dataset
 
@@ -123,11 +120,18 @@ class Evaluator:
         for i in range(n):
             problem = dataset.get_problem(i)
             t0 = time.perf_counter()
-            response = baseline.run(
-                problem.question,
-                system_prompt=dataset.get_system_prompt(),
-                instruction=dataset.get_instruction(),
-            )
+            try:
+                response = baseline.run(
+                    problem.question,
+                    system_prompt=dataset.get_system_prompt(),
+                    instruction=dataset.get_instruction(),
+                )
+            except Exception as exc:
+                elapsed = time.perf_counter() - t0
+                task_times.append(elapsed)
+                accuracy.record(False)
+                print(f"  [{i + 1}/{n}] ✗  ERROR ({elapsed:.1f}s): {exc!r}")
+                continue
             elapsed = time.perf_counter() - t0
             task_times.append(elapsed)
 

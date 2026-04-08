@@ -19,9 +19,8 @@ from models.base import BaseLLM, LLMResponse
 
 @dataclass
 class BaselineResponse:
-    
     """Container for a standardized baseline execution response.
-    
+
     Attributes:
         final_answer: The final answer produced by the baseline method.
         reasoning_trace: The complete reasoning process/chain of thought.
@@ -44,12 +43,10 @@ class BaselineResponse:
 
     @property
     def total_tokens(self) -> int:
-        
         """Total tokens consumed (input + output)."""
         return self.total_input_tokens + self.total_output_tokens
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        
         """Convert response to dictionary for JSON serialization."""
         return {
             "final_answer": self.final_answer,
@@ -65,7 +62,7 @@ class BaselineResponse:
 
 class BaseBaseline(ABC):
     """Abstract base class for all prompt engineering baseline methods.
-    
+
     This class provides a unified interface for implementing various
     prompt engineering techniques such as:
     - Zero-Shot CoT
@@ -83,9 +80,8 @@ class BaseBaseline(ABC):
     """
 
     def __init__(self, llm: BaseLLM, baseline_name: str = "BaseBaseline"):
-        
         """Initialize the baseline with an LLM client.
-        
+
         Args:
             llm: An instance of a BaseLLM subclass (e.g., GPTClient, GeminiClient).
             baseline_name: Name identifier for this baseline method.
@@ -95,22 +91,20 @@ class BaseBaseline(ABC):
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         self.num_llm_calls = 0
-    
+
     def reset_counters(self) -> None:
-        
         """Reset token and call counters before a new run."""
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         self.num_llm_calls = 0
-    
+
     def call_llm(self, prompt: str, temperature: float = 0.0) -> LLMResponse:
-        
         """Internal method to call the LLM and track usage statistics.
-        
+
         Args:
             prompt: The prompt to send to the LLM.
             temperature: Sampling temperature for generation.
-            
+
         Returns:
             LLMResponse containing the generation result.
         """
@@ -119,7 +113,7 @@ class BaseBaseline(ABC):
         self.total_output_tokens += response.output_tokens
         self.num_llm_calls += 1
         return response
-    
+
     def create_response(
         self,
         final_answer: str,
@@ -127,19 +121,17 @@ class BaseBaseline(ABC):
         intermediate_steps: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> BaselineResponse:
-        
         """Helper method to create a standardized BaselineResponse.
-        
+
         Args:
             final_answer: The final answer produced.
             reasoning_trace: The reasoning process.
             intermediate_steps: List of intermediate steps.
             metadata: Additional metadata.
-            
+
         Returns:
             A populated BaselineResponse object.
         """
-
         return BaselineResponse(
             final_answer=final_answer,
             reasoning_trace=reasoning_trace,
@@ -150,6 +142,7 @@ class BaseBaseline(ABC):
             intermediate_steps=intermediate_steps or [],
             metadata=metadata or {},
         )
+
     @abstractmethod
     def run(self, question: str, **kwargs) -> BaselineResponse:
         """Execute the prompt engineering method on the given question.

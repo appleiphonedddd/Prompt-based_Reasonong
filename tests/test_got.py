@@ -742,10 +742,14 @@ class TestGoTFullPipeline(unittest.TestCase):
     # ── temperature override ──────────────────────────────────────────────
 
     def test_temperature_override(self):
+        # Passing temperature= should affect the run but NOT permanently mutate
+        # the instance's gen_temperature (Issue 4 fix).
         resps = _build_responses(branches=1, kept=1, refine_rounds=0)
-        got   = GoT(SequentialMockLLM(resps), num_branches=1, keep_best=1, refine_rounds=0)
+        got   = GoT(SequentialMockLLM(resps), num_branches=1, keep_best=1,
+                    refine_rounds=0, gen_temperature=0.7)
         got.run(self.Q, temperature=0.99)
-        self.assertAlmostEqual(got.gen_temperature, 0.99)
+        # gen_temperature must be restored to original value after the run
+        self.assertAlmostEqual(got.gen_temperature, 0.7)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

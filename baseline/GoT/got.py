@@ -604,7 +604,8 @@ class GoT(BaseBaseline):
         """
         self.reset_counters()
 
-        # Allow caller-side temperature override
+        # Allow caller-side temperature override without mutating instance state.
+        _orig_gen_temp = self.gen_temperature
         if temperature != 0.0:
             self.gen_temperature = temperature
 
@@ -617,7 +618,10 @@ class GoT(BaseBaseline):
         grs = GraphReasoningState()
 
         # Run the static Graph of Operations (GoO)
-        final_thought = self._execute_graph_of_operations(full_question, grs)
+        try:
+            final_thought = self._execute_graph_of_operations(full_question, grs)
+        finally:
+            self.gen_temperature = _orig_gen_temp
 
         # Extract structured answer from the final thought
         _, final_answer = self._parse_answer(final_thought.content)

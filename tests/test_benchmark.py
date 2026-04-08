@@ -335,14 +335,16 @@ class TestRegistry(unittest.TestCase):
 
     def test_registry_contains_gameof24(self):
         self.assertIn("gameof24", DATASET_REGISTRY)
-        self.assertIs(DATASET_REGISTRY["gameof24"], GameOf24)
+        cls, _ = DATASET_REGISTRY["gameof24"]
+        self.assertIs(cls, GameOf24)
 
     def test_registry_contains_mgsm(self):
         self.assertIn("mgsm", DATASET_REGISTRY)
-        self.assertIs(DATASET_REGISTRY["mgsm"], MGSM)
+        cls, _ = DATASET_REGISTRY["mgsm"]
+        self.assertIs(cls, MGSM)
 
     def test_all_registry_entries_are_dataset_subclasses(self):
-        for name, cls in DATASET_REGISTRY.items():
+        for name, (cls, _) in DATASET_REGISTRY.items():
             with self.subTest(dataset=name):
                 self.assertTrue(
                     issubclass(cls, DatasetBase),

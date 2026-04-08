@@ -82,13 +82,19 @@ def _extract_number(text: str) -> Optional[float]:
     if all_numbers:
         return float(all_numbers[-1])
 
-    # Last resort: English number words
+    # Last resort: English number words — return the value of the word that
+    # appears LAST in the text (consistent with the numeric-fallback behaviour
+    # above which also takes the last number found).
     lower = text.lower()
+    last_pos: int = -1
+    last_val: Optional[float] = None
     for word, value in _NUMBER_WORDS.items():
-        if re.search(rf"\b{word}\b", lower):
-            return float(value)
+        m = re.search(rf"\b{word}\b", lower)
+        if m and m.start() > last_pos:
+            last_pos = m.start()
+            last_val = float(value)
 
-    return None
+    return last_val
 
 
 class MGSM(DatasetBase):
