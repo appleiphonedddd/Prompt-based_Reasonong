@@ -2,7 +2,7 @@
 llm:
   local:
     ## You can change the base_url to point to your local LLM server
-    base_url: "http://192.168.50.132:11434/v1"
+    base_url: "http://localhost:11434/v1/"
   
   gemini:
     base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
