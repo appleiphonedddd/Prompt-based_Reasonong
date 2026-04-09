@@ -29,7 +29,7 @@ from benchmark.MGSM.mgsm import MGSM
 # To add a new dataset: insert one entry here — no changes to main.py needed.
 DATASET_REGISTRY: dict[str, tuple] = {
     "gameof24": (GameOf24, lambda _: {}),
-    "mgsm":     (MGSM,     lambda a: {"language": a.mgsm_language}),
+    "mgsm":     (MGSM,     lambda _: {}),
 }
 
 __all__ = [

@@ -181,10 +181,6 @@ def general_args(parser: argparse.ArgumentParser) -> None:
                         help="Independent experiment runs")
     parser.add_argument("--num_samples",  type=int, default=None,
                         help="Max questions to evaluate per run (None = full dataset)")
-    """
-    parser.add_argument("--mgsm_language", default="en",
-                     help="Language for MGSM benchmark (en|de|fr|es|ru|zh|ja|th|sw|bn)")
-    """
 
 def rot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("RoT")
