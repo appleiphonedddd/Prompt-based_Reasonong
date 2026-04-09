@@ -71,10 +71,8 @@ docker exec ollama ollama rm qwen2:0.5b
 
 ```sh
 python main.py \
-  --provider gemini \
-  --model gemini-2.5-flash \
-  --dataset game24 \
-  --baseline zero_shot_cot \
-  --shots 0 \
-  --output results/test_run.json
+  --model "gemini:gemini-2.5-flash" \
+  --benchmark "gameof24" \
+  --baseline "tot" \
+  --num_samples 10
 ```
