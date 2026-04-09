@@ -113,8 +113,6 @@ class Evaluator:
         accuracy = Accuracy()
 
         n = len(dataset)
-        if self.args.num_samples and self.args.num_samples < n:
-            n = self.args.num_samples
 
         task_times: list[float] = []
         for i in range(n):
@@ -154,7 +152,7 @@ class Evaluator:
         print(f"Number of Runs: {args.num_runs}")
 
         dataset = self.build_dataset()
-        n = min(args.num_samples, len(dataset)) if args.num_samples else len(dataset)
+        n = len(dataset)
         print(f"Questions:      {n}")
         efficiency = Efficiency(num_tasks=n)
 
@@ -179,8 +177,6 @@ def general_args(parser: argparse.ArgumentParser) -> None:
                         help="Baseline: standard | zerocot | zerocot_single | rot | tot | bot | got")
     parser.add_argument("--num_runs",     type=int, default=1,
                         help="Independent experiment runs")
-    parser.add_argument("--num_samples",  type=int, default=None,
-                        help="Max questions to evaluate per run (None = full dataset)")
 
 def rot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("RoT")
