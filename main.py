@@ -73,9 +73,9 @@ class Evaluator:
     def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
         self.model_family = args.model.split(":")[0].lower()
-        self._validate()
+        self.validate()
 
-    def _validate(self) -> None:
+    def validate(self) -> None:
         if self.model_family not in MODEL_REGISTRY:
             raise ValueError(
                 f"Model '{self.model_family}' not supported. "
@@ -92,14 +92,14 @@ class Evaluator:
                 f"Supported: {list(DATASET_REGISTRY)}"
             )
 
-    def _build_client(self):
+    def build_client(self):
         return MODEL_REGISTRY[self.model_family](model_name=self.args.model)
 
-    def _build_baseline(self, client):
+    def build_baseline(self, client):
         cls, extract_kwargs = BASELINE_REGISTRY[self.args.baseline.lower()]
         return cls(llm=client, **extract_kwargs(self.args))
 
-    def _build_dataset(self):
+    def build_dataset(self):
         benchmark_key = self.args.benchmark.lower()
         cls, extract_kwargs = DATASET_REGISTRY[benchmark_key]
         dataset = cls(**extract_kwargs(self.args))
@@ -108,8 +108,8 @@ class Evaluator:
 
     def _run_once(self, run_index: int, dataset, efficiency: Efficiency) -> float:
         print(f"\n[Run {run_index}/{self.args.num_runs}]")
-        client   = self._build_client()
-        baseline = self._build_baseline(client)
+        client   = self.build_client()
+        baseline = self.build_baseline(client)
         accuracy = Accuracy()
 
         n = len(dataset)
@@ -153,7 +153,7 @@ class Evaluator:
         print(f"Baseline:       {args.baseline}")
         print(f"Number of Runs: {args.num_runs}")
 
-        dataset = self._build_dataset()
+        dataset = self.build_dataset()
         n = min(args.num_samples, len(dataset)) if args.num_samples else len(dataset)
         print(f"Questions:      {n}")
         efficiency = Efficiency(num_tasks=n)
@@ -170,7 +170,7 @@ class Evaluator:
 # ── CLI argument groups ───────────────────────────────────────────────────────
 # To add a new baseline: add one _add_<name>_args function and call it below.
 
-def _add_general_args(parser: argparse.ArgumentParser) -> None:
+def general_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--model",        default="qwen2.5:14b",
                         help="Model name (prefix = provider, e.g. 'gemini:...')")
     parser.add_argument("--benchmark",    default="gameof24",
@@ -181,11 +181,11 @@ def _add_general_args(parser: argparse.ArgumentParser) -> None:
                         help="Independent experiment runs")
     parser.add_argument("--num_samples",  type=int, default=None,
                         help="Max questions to evaluate per run (None = full dataset)")
-    parser.add_argument("--mgsm_language", default="en",
-                        help="Language for MGSM benchmark (en|de|fr|es|ru|zh|ja|th|sw|bn)")
+    #parser.add_argument("--mgsm_language", default="en",
+    #                   help="Language for MGSM benchmark (en|de|fr|es|ru|zh|ja|th|sw|bn)")
 
 
-def _add_rot_args(parser: argparse.ArgumentParser) -> None:
+def rot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("RoT")
     g.add_argument("--warmup", type=int, default=5,
                    help="Number of reverse-reasoning candidates K")
@@ -195,7 +195,7 @@ def _add_rot_args(parser: argparse.ArgumentParser) -> None:
                    help="Sampling temperature for instantiation reasoning")
 
 
-def _add_tot_args(parser: argparse.ArgumentParser) -> None:
+def tot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("ToT")
     g.add_argument("--tot_algorithm", default="bfs", choices=["bfs", "dfs"],
                    help="Search algorithm: breadth-first (bfs) or depth-first (dfs)")
@@ -215,7 +215,7 @@ def _add_tot_args(parser: argparse.ArgumentParser) -> None:
                    help="Sampling temperature for state evaluation (0 = deterministic)")
 
 
-def _add_bot_args(parser: argparse.ArgumentParser) -> None:
+def bot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("BoT")
     g.add_argument("--bot_threshold", type=float, default=0.6,
                    help="Similarity threshold (δ) for template retrieval and updates")
@@ -229,7 +229,7 @@ def _add_bot_args(parser: argparse.ArgumentParser) -> None:
                    help="Disable automatic buffer updating after solving")
 
 
-def _add_got_args(parser: argparse.ArgumentParser) -> None:
+def got_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("GoT")
     g.add_argument("--got_branches", type=int, default=3,
                    help="Number of branches to explore at each step")
@@ -250,15 +250,14 @@ def build_parser() -> argparse.ArgumentParser:
         description="Prompt-Based Reasoning Evaluation",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    _add_general_args(parser)
-    _add_rot_args(parser)
-    _add_tot_args(parser)
-    _add_bot_args(parser)
-    _add_got_args(parser)
+    general_args(parser)
+    rot_args(parser)
+    tot_args(parser)
+    bot_args(parser)
+    got_args(parser)
     return parser
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     args = build_parser().parse_args()
 
