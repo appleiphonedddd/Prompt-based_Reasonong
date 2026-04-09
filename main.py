@@ -106,7 +106,7 @@ class Evaluator:
         dataset.load_dataset()
         return dataset
 
-    def _run_once(self, run_index: int, dataset, efficiency: Efficiency) -> float:
+    def run_once(self, run_index: int, dataset, efficiency: Efficiency) -> float:
         print(f"\n[Run {run_index}/{self.args.num_runs}]")
         client   = self.build_client()
         baseline = self.build_baseline(client)
@@ -160,7 +160,7 @@ class Evaluator:
 
         stats = AccuracyStatistics()
         for i in range(1, args.num_runs + 1):
-            stats.add_result(self._run_once(i, dataset, efficiency))
+            stats.add_result(self.run_once(i, dataset, efficiency))
 
         stats.print_summary(baseline_name=args.baseline)
         print(f"Avg time/question: {efficiency.get_T():.2f}s  (over {efficiency.get_M()} run(s))")
@@ -181,9 +181,10 @@ def general_args(parser: argparse.ArgumentParser) -> None:
                         help="Independent experiment runs")
     parser.add_argument("--num_samples",  type=int, default=None,
                         help="Max questions to evaluate per run (None = full dataset)")
-    #parser.add_argument("--mgsm_language", default="en",
-    #                   help="Language for MGSM benchmark (en|de|fr|es|ru|zh|ja|th|sw|bn)")
-
+    """
+    parser.add_argument("--mgsm_language", default="en",
+                     help="Language for MGSM benchmark (en|de|fr|es|ru|zh|ja|th|sw|bn)")
+    """
 
 def rot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("RoT")
