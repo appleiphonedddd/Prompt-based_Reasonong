@@ -26,6 +26,9 @@ MODEL_REGISTRY: dict[str, type] = {
     "llama":    LlamaClient,
     "gemini":   GeminiClient,
     "qwen":     QwenClient,
+    "qwen2":    QwenClient,
+    "qwen2.5":  QwenClient,
+    "qwen3":    QwenClient,
 }
 
 # To add a new baseline: insert one entry here (class, kwargs-extractor).
