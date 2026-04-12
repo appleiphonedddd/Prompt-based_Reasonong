@@ -12,5 +12,5 @@ models:
   gpt: "gpt-4o-mini"
   deepseek: "deepseek-chat"
   llama: "llama3:8b"
-  qwen: "qwen2.5:14b"
+  qwen: "qwen:4b"
   gemini: "gemini-2.0-flash-lite"

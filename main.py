@@ -93,7 +93,7 @@ class Evaluator:
             )
 
     def build_client(self):
-        return MODEL_REGISTRY[self.model_family](model_name=self.args.model)
+        return MODEL_REGISTRY[self.model_family](model=self.args.model)
 
     def build_baseline(self, client):
         cls, extract_kwargs = BASELINE_REGISTRY[self.args.baseline.lower()]
