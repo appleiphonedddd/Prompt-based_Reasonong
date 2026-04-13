@@ -141,15 +141,15 @@ class ZeroShotCoT(BaseBaseline):
         system_prompt: Optional[str] = None,
         instruction: Optional[str] = None,
         temperature: float = 0.0,
-        extract_answer: bool = True,
+        extract_answer: Optional[bool] = None,
         **kwargs,
     ) -> BaselineResponse:
         """Execute Zero-Shot CoT prompting on the given question.
-        
+
         This method performs two-stage prompting:
         1. Generate reasoning with "Let's think step by step"
         2. Extract final answer from the reasoning (optional)
-        
+
         Args:
             question: The input question to answer.
             system_prompt: Optional system-level instruction.
@@ -157,14 +157,27 @@ class ZeroShotCoT(BaseBaseline):
             temperature: Sampling temperature for generation.
             extract_answer: If True, perform second LLM call to extract
                           the final answer. If False, return full reasoning
-                          as the answer.
+                          as the answer. If None, auto-detect based on task
+                          (e.g., disable for expression-based tasks like Game of 24).
             **kwargs: Additional arguments (unused, for interface compatibility).
-            
+
         Returns:
             BaselineResponse containing the answer, reasoning trace, and metrics.
         """
         self.reset_counters()
         intermediate_steps = []
+
+        # Auto-detect whether extraction is appropriate
+        if extract_answer is None:
+            # Check if this is an expression-based task (Game of 24, etc.)
+            # These tasks expect arithmetic expressions, not numerical results
+            is_expression_task = (
+                instruction and
+                ("expression" in instruction.lower() or
+                 "equation" in instruction.lower() or
+                 "formula" in instruction.lower())
+            )
+            extract_answer = not is_expression_task
 
         # Stage 1: Generate reasoning
         reasoning_prompt = self.build_reasoning_prompt(
@@ -172,7 +185,7 @@ class ZeroShotCoT(BaseBaseline):
         )
         reasoning_response = self.call_llm(reasoning_prompt, temperature=temperature)
         reasoning_trace = reasoning_response.content.strip()
-        
+
         intermediate_steps.append(f"[Reasoning]\n{reasoning_trace}")
 
         # Stage 2: Extract final answer (optional)
@@ -180,7 +193,7 @@ class ZeroShotCoT(BaseBaseline):
             extraction_prompt = self.build_extraction_prompt(question, reasoning_trace)
             extraction_response = self.call_llm(extraction_prompt, temperature=0.0)
             final_answer = self.extract_answer_simple(extraction_response.content)
-            
+
             intermediate_steps.append(f"[Extraction]\n{extraction_response.content.strip()}")
         else:
             final_answer = reasoning_trace
