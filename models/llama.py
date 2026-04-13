@@ -23,7 +23,7 @@ from utils.config import get_config
 
 class LlamaClient(BaseLLM):
 
-    def __init__(self, api_key: str = None, model: str ="llama3:8b"):
+    def __init__(self, api_key: str = None, model: str ="llama3.1:8b"):
         config = get_config()
         key = api_key or os.getenv("API_KEY")
         if not key:
