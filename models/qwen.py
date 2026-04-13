@@ -23,7 +23,7 @@ from utils.config import get_config
 
 class QwenClient(BaseLLM):
 
-    def __init__(self, api_key: str = None, model: str ="qwen2.5:14b"):
+    def __init__(self, api_key: str = None, model: str ="qwen2:7b"):
         config = get_config()
         key = api_key or os.getenv("API_KEY")
         if not key:

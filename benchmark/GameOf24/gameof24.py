@@ -169,10 +169,9 @@ class GameOf24(DatasetBase):
 
         row = self._data[index]
 
-        # The nlile/24-game schema uses the column "Puzzles"
-        # which contains strings like "1 2 3 4".
-        puzzle_str: str = row.get("Puzzles", row.get("puzzle", ""))
-        numbers = [int(n) for n in puzzle_str.split()]
+        # The nlile/24-game dataset has a "numbers" column (list of ints)
+        numbers = row.get("numbers", [])
+        puzzle_str = " ".join(str(n) for n in numbers)
 
         return Problem(
             index=index,
