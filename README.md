@@ -70,5 +70,5 @@ docker exec ollama ollama rm qwen2:0.5b
 ## Evaluation
 
 ```sh
-python main.py --model qwen2:7b --baseline standard --benchmark mgsm
+python main.py --model qwen2.5:7b --baseline standard --benchmark mgsm
 ```
