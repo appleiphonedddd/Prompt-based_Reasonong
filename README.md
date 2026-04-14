@@ -60,13 +60,13 @@ export API_KEY="ollama"
 Pull your desired model:
 
 ```sh
-docker exec -it ollama ollama run qwen:2.5:3b
+docker exec -it ollama ollama run qwen2.5:3b
 ```
 
 Delete model:
 
 ```sh
-docker exec -it ollama ollama rm qwen:2.5:3b
+docker exec -it ollama ollama rm qwen2.5:3b
 ```
 
 ## Evaluation
@@ -75,6 +75,6 @@ Run benchmarks on local Ollama models:
 
 ```sh
 # Basic evaluation
-python main.py --model qwen:2.5:3b --baseline standard
+python main.py --model qwen2.5:3b --baseline standard
 
 ```
