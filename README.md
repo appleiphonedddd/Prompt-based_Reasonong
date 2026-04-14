@@ -51,16 +51,8 @@ conda activate Prompt
 
 ### 2. Deploying Local Models with Ollama
 
-Start Ollama container:
-
 ```sh
-docker run -d \
-  --name ollama \
-  --gpus all \
-  --restart unless-stopped \
-  -p 11434:11434 \
-  -v ollama:/root/.ollama \
-  ollama/ollama
+export API_KEY="ollama"
 ```
 
 Pull your desired model:
@@ -73,15 +65,6 @@ Delete model:
 
 ```sh
 docker exec -it ollama ollama rm llama2
-```
-
-### 3. API Key Configuration (Optional)
-
-API keys are **not required** for local Docker models. If needed for cloud APIs:
-
-```sh
-export API_KEY="your_openai_api_key"
-export GEMINI_API_KEY="your_gemini_api_key"
 ```
 
 ## Evaluation
