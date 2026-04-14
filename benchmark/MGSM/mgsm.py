@@ -26,6 +26,7 @@ Author: Egor Morozov
 """
 
 import re
+from pathlib import Path
 from typing import Any, Optional
 
 from benchmark.datasetbase import DatasetBase, EvaluationResult, Problem
@@ -137,37 +138,66 @@ class MGSM(DatasetBase):
     # ── Abstract method implementations ───────────────────────────────────
 
     def load_dataset(self) -> None:
-        """Download the MGSM dataset from Hugging Face.
+        """Load the MGSM dataset from local TSV files.
 
-        Populates ``self._data`` with the HuggingFace Dataset object
-        for the selected language and split.
+        Populates ``self._data`` with a list of dicts containing the dataset rows.
+        The data is loaded from TSV files stored locally to avoid issues with
+        deprecated HuggingFace dataset scripts.
 
         Raises:
-            ImportError:  If the ``datasets`` package is not installed.
-            RuntimeError: If the download or validation fails.
+            RuntimeError: If the data files cannot be found or loaded.
         """
-        try:
-            from datasets import load_dataset as hf_load
-        except ImportError as exc:
-            raise ImportError(
-                "The 'datasets' package is required. "
-                "Install it with: pip install datasets"
-            ) from exc
+        # Locate the data directory
+        mgsm_dir = Path(__file__).parent
+        data_dir = mgsm_dir / "data"
+        tsv_file = data_dir / f"mgsm_{self.language}.tsv"
+
+        if not tsv_file.exists():
+            raise RuntimeError(
+                f"[{self.dataset_name}] Data file not found: {tsv_file}\n"
+                f"Please download the dataset using:\n"
+                f"  python download_mgsm_data.py"
+            )
 
         try:
-            raw = hf_load(
-                self.HF_DATASET_ID,
-                self.language,
-                split=self.split,
-            )
+            # Load TSV file
+            # Format: question \t answer_number
+            rows = []
+            with open(tsv_file, "r", encoding="utf-8") as f:
+                for line_num, line in enumerate(f, start=1):
+                    line = line.rstrip("\n")
+                    if not line.strip():
+                        continue
+
+                    parts = line.split("\t")
+                    if len(parts) < 2:
+                        continue
+
+                    question = parts[0].strip()
+                    answer_str = parts[1].strip()
+
+                    try:
+                        answer_number = int(answer_str)
+                    except ValueError:
+                        # Try parsing as float first
+                        try:
+                            answer_number = int(float(answer_str))
+                        except ValueError:
+                            answer_number = None
+
+                    rows.append({
+                        "question": question,
+                        "answer": answer_str,
+                        "answer_number": answer_number,
+                    })
+
+            self._data = rows
+
         except Exception as exc:
             raise RuntimeError(
-                f"[{self.dataset_name}] Failed to load "
-                f"'{self.HF_DATASET_ID}' (lang='{self.language}', "
-                f"split='{self.split}'): {exc}"
+                f"[{self.dataset_name}] Failed to load '{tsv_file}': {exc}"
             ) from exc
 
-        self._data = raw
         print(
             f"[{self.dataset_name}] Loaded {len(self._data)} problems "
             f"(lang='{self.language}', split='{self.split}')."
@@ -177,7 +207,7 @@ class MGSM(DatasetBase):
         """Return the MGSM problem at the given index.
 
         Args:
-            index: Zero-based index into the dataset split.
+            index: Zero-based index into the dataset.
 
         Returns:
             Problem whose ``question`` is the word problem string and
@@ -197,7 +227,7 @@ class MGSM(DatasetBase):
 
         row = self._data[index]
 
-        # juletxara/mgsm schema columns: "question", "answer", "answer_number"
+        # Schema columns: "question", "answer", "answer_number"
         question: str     = row.get("question", "")
         answer_number     = row.get("answer_number", None)
 
