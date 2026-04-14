@@ -159,7 +159,6 @@ class MGSM(DatasetBase):
                 self.HF_DATASET_ID,
                 self.language,
                 split=self.split,
-                trust_remote_code=True,
             )
         except Exception as exc:
             raise RuntimeError(

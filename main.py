@@ -183,6 +183,8 @@ def general_args(parser: argparse.ArgumentParser) -> None:
                         help="Baseline: standard | zerocot | zerocot_single | rot | tot | bot | got")
     parser.add_argument("--num_runs",     type=int, default=1,
                         help="Independent experiment runs")
+    parser.add_argument("--language",     default="en",
+                        help="Language for MGSM benchmark (en, de, fr, es, ru, zh, ja, th, sw, bn)")
 
 def rot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("RoT")
