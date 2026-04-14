@@ -6,6 +6,7 @@ from models.deepseek import DeepSeekClient
 from models.llama import LlamaClient
 from models.gemini import GeminiClient
 from models.qwen import QwenClient
+from models.ministral import MinstralClient
 from baseline.CoT import ZeroShotCoT, ZeroShotCoTSinglePass
 from baseline.RoT import RoT
 from baseline.ToT import ToT
@@ -32,6 +33,7 @@ MODEL_REGISTRY: dict[str, type] = {
     "qwen2":    QwenClient,
     "qwen2.5":  QwenClient,
     "qwen3":    QwenClient,
+    "ministral-3": MinstralClient,
 }
 
 # To add a new baseline: insert one entry here (class, kwargs-extractor).
@@ -297,7 +299,7 @@ class Evaluator:
 
 
 # ── CLI argument groups ───────────────────────────────────────────────────────
-# To add a new baseline: add one _add_<name>_args function and call it below.
+# To add a news baseline: add one _add_<name>_args function and call it below.
 
 def general_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--model",        default="qwen2.5:14b",
