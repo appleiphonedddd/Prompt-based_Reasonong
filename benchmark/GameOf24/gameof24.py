@@ -206,6 +206,25 @@ class GameOf24(DatasetBase):
         # Strip markdown code blocks and surrounding whitespace
         clean = re.sub(r"```[a-z]*", "", prediction).strip().strip("`").strip()
 
+        # Convert LaTeX math symbols and delimiters
+        # Handle \(...\), \[...\], and $...$ → content
+        clean = re.sub(r"\\\(", "(", clean)
+        clean = re.sub(r"\\\)", ")", clean)
+        clean = re.sub(r"\\\[", "", clean)
+        clean = re.sub(r"\\\]", "", clean)
+        clean = re.sub(r"\$", "", clean)
+
+        # Replace LaTeX commands with ASCII equivalents
+        # \frac{a}{b} → (a/b)
+        clean = re.sub(r"\\frac\s*\{([^}]*)\}\s*\{([^}]*)\}", r"(\1/\2)", clean)
+        # \times, \cdot → *
+        clean = re.sub(r"\\(times|cdot)", "*", clean)
+        # \div → /
+        clean = re.sub(r"\\div", "/", clean)
+        # \left and \right → nothing (just remove them)
+        clean = re.sub(r"\\left\s*", "", clean)
+        clean = re.sub(r"\\right\s*", "", clean)
+
         # Try to isolate just the arithmetic expression
         # (models sometimes write "The answer is (2+5)*8/11 = 24")
         expr_match = re.search(r"[\d\s()+\-*/%.]+", clean)

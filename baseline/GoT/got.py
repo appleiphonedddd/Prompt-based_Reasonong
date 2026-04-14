@@ -174,6 +174,8 @@ class GraphReasoningState:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _GENERATE_PROMPT = """\
+{system_prompt}
+
 You are an expert problem-solver.  Your task is to reason step-by-step and \
 produce a complete, precise solution to the problem below.
 
@@ -199,6 +201,8 @@ Respond with ONLY a single decimal number between 0.0 and 1.0.
 Score:"""
 
 _AGGREGATE_PROMPT = """\
+{system_prompt}
+
 You are an expert problem-solver.  Below are {n} candidate solutions to the \
 same problem.  Your task is to synthesize them into ONE definitive, complete, \
 and accurate answer, combining the best insights from all candidates while \
@@ -216,6 +220,8 @@ Reasoning: <your step-by-step reasoning>
 Answer: <concise final answer>"""
 
 _REFINE_PROMPT = """\
+{system_prompt}
+
 You are an expert problem-solver.  Review the solution below and improve it \
 if needed.  Fix any errors, fill gaps in reasoning, and make the answer \
 clearer and more precise.
@@ -300,13 +306,14 @@ class GoT(BaseBaseline):
         self.gen_temperature   = gen_temperature
         self.score_temperature = score_temperature
         self.agg_temperature   = agg_temperature
+        self.system_prompt     = ""
 
     # ─────────────────────────────────────────────────────────────────────
     # Prompter helpers (§3 – Prompter module)
     # ─────────────────────────────────────────────────────────────────────
 
     def _build_generate_prompt(self, question: str) -> str:
-        return _GENERATE_PROMPT.format(question=question)
+        return _GENERATE_PROMPT.format(system_prompt=self.system_prompt, question=question)
 
     def _build_score_prompt(self, question: str, content: str) -> str:
         return _SCORE_PROMPT.format(question=question, content=content)
@@ -319,13 +326,14 @@ class GoT(BaseBaseline):
             for i, t in enumerate(thoughts)
         )
         return _AGGREGATE_PROMPT.format(
+            system_prompt=self.system_prompt,
             n=len(thoughts),
             question=question,
             candidates=numbered,
         )
 
     def _build_refine_prompt(self, question: str, content: str) -> str:
-        return _REFINE_PROMPT.format(question=question, content=content)
+        return _REFINE_PROMPT.format(system_prompt=self.system_prompt, question=question, content=content)
 
     # ─────────────────────────────────────────────────────────────────────
     # Parser helpers (§3 – Parser module)
@@ -593,7 +601,7 @@ class GoT(BaseBaseline):
 
         Args:
             question:      The input problem to solve.
-            system_prompt: Unused (kept for interface compatibility).
+            system_prompt: System-level instruction provided to the model.
             instruction:   Optional extra context prepended to the question.
             temperature:   If non-zero, overrides ``gen_temperature``.
             **kwargs:      Forwarded but otherwise ignored.
@@ -603,6 +611,9 @@ class GoT(BaseBaseline):
             and GoT-specific metadata (graph snapshot, volume, …).
         """
         self.reset_counters()
+
+        # Store system_prompt for use in all prompt templates
+        self.system_prompt = system_prompt or ""
 
         # Allow caller-side temperature override without mutating instance state.
         _orig_gen_temp = self.gen_temperature
