@@ -25,9 +25,7 @@ class LlamaClient(BaseLLM):
 
     def __init__(self, api_key: str = None, model: str ="llama3.1:8b"):
         config = get_config()
-        key = api_key or os.getenv("API_KEY")
-        if not key:
-            raise ValueError("API Key is required.")
+        key = api_key or os.getenv("API_KEY") or "local"
         model = model or config["models"]["llama"]
         super().__init__(key, model)
         base_url = config["llm"]["local"]["base_url"]

@@ -2,16 +2,16 @@
 DeepSeek LLM client implementation.
 
 This module provides a concrete implementation of the BaseLLM interface
-using the DeepSeek Chat API. It handles API key resolution, request
-construction, response parsing, and error handling.
+using the DeepSeek Chat API via an OpenAI-compatible endpoint. It handles
+API key resolution, request construction, response parsing, and error handling.
 
 Classes:
-- DeepSeekClient: An LLM client that communicates with the Ollama API
-  and returns standardized LLMResponse objects.
+- DeepSeekClient: An LLM client that communicates with DeepSeek models via
+  an OpenAI-compatible API and returns standardized LLMResponse objects.
 
 Dependencies:
-- Requires a valid DeepSeek API key, provided either directly or via the
-  Ollama API environment variable.
+- Requires an OpenAI-compatible base URL (local Docker service or cloud API)
+- Optional: API key for cloud endpoints (not needed for local Docker services)
 
 Author: Egor Morozov
 """
@@ -25,13 +25,11 @@ class DeepSeekClient(BaseLLM):
 
     def __init__(self, api_key: str = None, model: str ="deepseek-chat"):
         config = get_config()
-        key = api_key or os.getenv("API_KEY")
-        if not key:
-            raise ValueError("API Key is required.")
+        key = api_key or os.getenv("API_KEY") or "local"
         model = model or config["models"]["deepseek"]
         super().__init__(key, model)
         base_url = config["llm"]["local"]["base_url"]
-        
+
         self.client = OpenAI(api_key=self.api_key, base_url=base_url)
     
     def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:

@@ -8,7 +8,7 @@
 - **Prompting Baselines**: Standard input, Zero-Shot CoT, Reflection-of-Thought (RoT), Tree-of-Thought (ToT), Buffer-of-Thought (BoT), and Graph-of-Thought (GoT)
 - **Reasoning Benchmarks**: Game of 24, MGSM (Multilingual Grade School Math), Sonnet Writing, and Programming Puzzles
 
-The framework provides standardized evaluation metrics (accuracy, efficiency) and supports both local models (via Ollama) and cloud-based APIs.
+The framework provides standardized evaluation metrics (accuracy, efficiency) and supports both local models (via Docker + vLLM) and cloud-based APIs.
 
 ---
 
@@ -35,8 +35,9 @@ The framework provides standardized evaluation metrics (accuracy, efficiency) an
 
 ### Environment & Deployment
 - **Conda**: Environment management (virtual environment in `/home/infor/miniconda3/envs/Prompt`)
-- **Docker**: Required for local Ollama instances (see `setup_ollama_gpu.sh`)
+- **Docker**: Required for running local models via vLLM
 - **NVIDIA Container Toolkit**: For GPU support in Docker containers
+- **vLLM**: OpenAI-compatible LLM inference engine for GPU-accelerated model serving
 
 ### Development Tools
 - **Typer**: 0.21.1 (CLI framework)
@@ -52,15 +53,15 @@ Prompt-based-Reasoning/
 ├── main.py                    # Entry point with Model/Baseline registries
 ├── config.yaml               # LLM API endpoints & model configurations
 ├── env.yaml                  # Conda environment specification
-├── setup_ollama_gpu.sh       # GPU setup script for Ollama
+├── setup_ollama_gpu.sh       # GPU/Docker environment setup script
 │
 ├── models/                   # LLM Provider Implementations
 │   ├── base.py              # Abstract BaseLLM class & LLMResponse dataclass
 │   ├── gpt.py               # OpenAI GPT implementation
 │   ├── gemini.py            # Google Gemini implementation
 │   ├── deepseek.py          # DeepSeek LLM implementation
-│   ├── llama.py             # Meta Llama (via Ollama) implementation
-│   ├── qwen.py              # Alibaba Qwen (via Ollama) implementation
+│   ├── llama.py             # Meta Llama (via Docker/vLLM) implementation
+│   ├── qwen.py              # Alibaba Qwen (via Docker/vLLM) implementation
 │   ├── ministral.py         # Mistral Ministral implementation
 │   └── gemma.py             # Google Gemma implementation
 │
@@ -206,7 +207,7 @@ BASELINE_REGISTRY = {
 
 2. **Model Configuration** (`config.yaml`)
    - LLM endpoints are centralized
-   - Base URLs for local (Ollama), Gemini, and other providers
+   - Base URLs for local (vLLM), Gemini, and other providers
    - Default model selections per provider
 
 3. **Environment Setup** (`env.yaml`)
@@ -221,18 +222,19 @@ BASELINE_REGISTRY = {
 conda env create -f env.yaml
 conda activate Prompt
 
-# 2. Set API key (if using cloud models)
+# 2. Setup GPU/Docker environment (first time only)
+./setup_ollama_gpu.sh
+
+# 3. Set API keys (optional, only if using cloud models)
 export API_KEY="your_openai_key"
 export GEMINI_API_KEY="your_gemini_key"
 
-# 3. For local models (Ollama), run setup
-./setup_ollama_gpu.sh
+# 4. Deploy local model via Docker + vLLM
+docker run -d --name qwen-vllm --gpus all -p 8000:8000 \
+  vllm/vllm-openai:latest --model Qwen/Qwen2.5-7B-Instruct
 
-# 4. Deploy local model
-docker exec -it ollama ollama run qwen2:7b
-
-# 5. Run evaluation
-python main.py --model qwen2:7b --baseline standard --benchmark mgsm
+# 5. Run evaluation (no API key needed for local models)
+python main.py --model "Qwen/Qwen2.5-7B-Instruct" --baseline standard --benchmark mgsm
 ```
 
 ### Token Tracking & Metrics
