@@ -43,13 +43,15 @@ conda activate Prompt
 
 ### 1. System Setup (GPU Support)
 
-**Option A: Automated (Recommended)**
+**Install ollama**
 
 ```sh
 ./setup_ollama_gpu.sh
 ```
 
 ### 2. Deploying Local Models with Ollama
+
+Set API_KEY for Ollama:
 
 ```sh
 export API_KEY="ollama"
@@ -58,13 +60,13 @@ export API_KEY="ollama"
 Pull your desired model:
 
 ```sh
-docker exec -it ollama ollama run llama2
+docker exec -it ollama ollama run qwen:2.5:3b
 ```
 
 Delete model:
 
 ```sh
-docker exec -it ollama ollama rm llama2
+docker exec -it ollama ollama rm qwen:2.5:3b
 ```
 
 ## Evaluation
