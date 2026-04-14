@@ -74,7 +74,5 @@ docker exec -it ollama ollama rm qwen2.5:3b
 Run benchmarks on local Ollama models:
 
 ```sh
-# Basic evaluation
 python main.py --model qwen2.5:3b --baseline standard
-
 ```
