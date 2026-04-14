@@ -6,7 +6,7 @@
 
 - **Multiple LLM Providers**: OpenAI (GPT), DeepSeek, Meta (Llama), Google (Gemini), Alibaba (Qwen), Mistral, and Google (Gemma)
 - **Prompting Baselines**: Standard input, Zero-Shot CoT, Reflection-of-Thought (RoT), Tree-of-Thought (ToT), Buffer-of-Thought (BoT), and Graph-of-Thought (GoT)
-- **Reasoning Benchmarks**: Game of 24, MGSM (Multilingual Grade School Math), and Programming Puzzles
+- **Reasoning Benchmarks**: Game of 24, MGSM (Multilingual Grade School Math), Sonnet Writing, and Programming Puzzles
 
 The framework provides standardized evaluation metrics (accuracy, efficiency) and supports both local models (via Ollama) and cloud-based APIs.
 
@@ -88,6 +88,7 @@ Prompt-based-Reasoning/
 │   ├── __init__.py          # DATASET_REGISTRY
 │   ├── GameOf24/            # Game of 24 benchmark
 │   ├── MGSM/                # Multilingual Grade School Math
+│   ├── SonnetWriting/       # Shakespearean sonnet generation
 │   └── ProgrammingPuzzles/  # Programming challenge dataset
 │
 ├── utils/                   # Utility Modules
@@ -257,22 +258,54 @@ python main.py --model qwen2:7b --baseline standard --benchmark mgsm
 
 ### Extending with New Benchmarks
 
-```python
-# benchmark/MyBench/__init__.py
-from benchmark.basebaseline import BaseBenchmark  # or similar structure
+The SonnetWriting benchmark provides a complete example. Follow this pattern:
 
-class MyBenchmark:
-    def __init__(self, data_path: str):
-        # Load your benchmark data
+```python
+# 1. Create benchmark/MyBench/mybench.py
+from benchmark.datasetbase import DatasetBase, Problem, EvaluationResult
+
+class MyBenchmark(DatasetBase):
+    def load_dataset(self) -> None:
+        # Load data (JSON, TSV, or HuggingFace)
+        # Set self._data to a list/dict
         pass
     
-    def evaluate(self, response: str, expected: str) -> bool:
-        # Your evaluation logic
-        return response.strip().lower() == expected.strip().lower()
+    def get_problem(self, index: int) -> Problem:
+        self._ensure_loaded()
+        return Problem(
+            index=index,
+            question="...",
+            ground_truth=...,
+            metadata={...}
+        )
+    
+    def evaluate_answer(self, prediction: str, ground_truth: Any) -> EvaluationResult:
+        # Implement your scoring logic
+        score = ...  # float in [0, 1]
+        is_correct = ...  # bool
+        return EvaluationResult(
+            is_correct=is_correct,
+            score=score,
+            prediction=prediction,
+            ground_truth=ground_truth,
+            details={...}
+        )
+    
+    def get_instruction(self) -> Optional[str]:
+        # Optional: task-specific guidance
+        return "..."
+    
+    def get_system_prompt(self) -> Optional[str]:
+        # Optional: system-level persona
+        return "..."
 
-# Register in benchmark/__init__.py
-DATASET_REGISTRY["mybench"] = MyBenchmark
+# 2. Register in benchmark/__init__.py
+from benchmark.MyBench.mybench import MyBenchmark
+DATASET_REGISTRY["mybench"] = (MyBenchmark, lambda _: {})
+# Add to __all__: "MyBenchmark"
 ```
+
+**Real example**: See `benchmark/SonnetWriting/` for a complete implementation evaluating Shakespearean sonnets on three criteria (word inclusion, structure, rhyme scheme).
 
 ### Logging & Debugging
 
@@ -326,20 +359,34 @@ python main.py --model <model_name> --baseline <baseline_name> --benchmark <benc
 4. **New Metric?** → Add to `utils/metrics.py`
 
 ### Files to Modify for Common Tasks
-| Task | File(s) |
-|------|---------|
-| Add LLM provider | `models/new_provider.py`, `main.py` |
-| Add prompting method | `baseline/NewMethod/`, `main.py` |
-| Add benchmark | `benchmark/NewBench/`, `benchmark/__init__.py` |
-| Modify config | `config.yaml`, `env.yaml` |
-| Update metrics | `utils/metrics.py`, `utils/get_mean_std.py` |
+| Task | File(s) | Example |
+|------|---------|---------|
+| Add LLM provider | `models/new_provider.py`, `main.py` | See: gemini.py, llama.py |
+| Add prompting method | `baseline/NewMethod/`, `main.py` | See: BoT/, ToT/ |
+| Add benchmark | `benchmark/NewBench/`, `benchmark/__init__.py` | See: SonnetWriting/ |
+| Modify config | `config.yaml`, `env.yaml` | API endpoints, model settings |
+| Update metrics | `utils/metrics.py`, `utils/get_mean_std.py` | Accuracy, efficiency stats |
+
+---
+
+## Recent Additions
+
+### SonnetWriting Benchmark (Latest)
+A generative creative task evaluating Shakespearean sonnet generation. Models are evaluated on:
+- **Word inclusion** (1/3): All 3 provided words must appear verbatim
+- **Structure** (1/3): Exactly 14 lines required
+- **Rhyme scheme** (1/3): ABAB CDCD EFEF GG pattern (via suffix matching)
+
+Dataset: 20 unique prompts. Score = average of three criteria. Model is "correct" only if all criteria fully satisfied.
+
+Reference: BoT paper (Yang et al., NeurIPS 2024), meta-prompting task (Suzgun & Kalai, 2024)
 
 ---
 
 ## Summary
 
 This is a well-structured Python research framework following solid software engineering practices:
-- **Extensibility**: Registry patterns make adding new models/baselines simple
+- **Extensibility**: Registry patterns make adding new models/baselines/benchmarks simple (see SonnetWriting for reference)
 - **Testability**: Abstract interfaces enable unit testing
 - **Maintainability**: Clear module separation and type hints
 - **Reproducibility**: Environment specs frozen in `env.yaml`
