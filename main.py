@@ -18,6 +18,7 @@ from utils.metrics import Efficiency, Accuracy
 from utils.get_mean_std import AccuracyStatistics
 from benchmark import DATASET_REGISTRY
 
+
 logging.getLogger().setLevel(logging.ERROR)
 
 # ── Registries ────────────────────────────────────────────────────────────────
