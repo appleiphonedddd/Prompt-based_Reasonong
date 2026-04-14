@@ -149,13 +149,53 @@ class Evaluator:
         print(f"  Accuracy: {acc:.2f}%")
         return acc
 
+    def _get_languages_to_test(self) -> list[str]:
+        """Determine which languages to test.
+
+        Priority:
+        1. --languages arg (if provided)
+        2. --language arg (if single language specified)
+        3. 'en' (default)
+        """
+        args = self.args
+
+        # If --languages is provided, use it
+        if hasattr(args, 'languages') and args.languages:
+            return args.languages
+
+        # If --language is 'all', test all 10 languages
+        if args.language.lower() == 'all':
+            return ["en", "de", "fr", "es", "ru", "zh", "ja", "th", "sw", "bn"]
+
+        # Otherwise use single language
+        return [args.language]
+
     def run(self) -> None:
+        args = self.args
+
+        # Determine languages to test
+        languages = self._get_languages_to_test()
+
+        # If only one language, run normally
+        if len(languages) == 1:
+            self._run_single_language(languages[0])
+        else:
+            # Multiple languages: run each and aggregate
+            self._run_multiple_languages(languages)
+
+    def _run_single_language(self, language: str) -> None:
+        """Run evaluation for a single language."""
         args = self.args
         print(f"\n--- Starting Evaluation ---")
         print(f"Model:          {args.model}")
         print(f"Benchmark:      {args.benchmark}")
         print(f"Baseline:       {args.baseline}")
+        print(f"Language:       {language}")
         print(f"Number of Runs: {args.num_runs}")
+
+        # Temporarily set the language for this evaluation
+        original_language = args.language
+        args.language = language
 
         dataset = self.build_dataset()
         n = len(dataset)
@@ -168,6 +208,85 @@ class Evaluator:
 
         stats.print_summary(baseline_name=args.baseline)
         print(f"Avg time/question: {efficiency.get_T():.2f}s  (over {efficiency.get_M()} run(s))")
+        print("\nAll done!")
+
+        # Restore original language
+        args.language = original_language
+
+    def _run_multiple_languages(self, languages: list[str]) -> None:
+        """Run evaluation for multiple languages and aggregate results."""
+        args = self.args
+        print(f"\n--- Starting Multilingual MGSM Evaluation ---")
+        print(f"Model:          {args.model}")
+        print(f"Benchmark:      {args.benchmark}")
+        print(f"Baseline:       {args.baseline}")
+        print(f"Languages:      {', '.join(languages)}")
+        print(f"Number of Runs: {args.num_runs}")
+        print("=" * 70)
+
+        results = {}  # language -> accuracy
+
+        # Run evaluation for each language
+        for lang_idx, language in enumerate(languages, 1):
+            print(f"\n[{lang_idx}/{len(languages)}] Testing {language.upper()}...")
+            print("-" * 70)
+
+            # Temporarily set the language
+            original_language = args.language
+            args.language = language
+
+            try:
+                dataset = self.build_dataset()
+                n = len(dataset)
+                efficiency = Efficiency(num_tasks=n)
+
+                stats = AccuracyStatistics()
+                for run_idx in range(1, args.num_runs + 1):
+                    accuracy = self.run_once(run_idx, dataset, efficiency)
+                    stats.add_result(accuracy)
+
+                results[language] = {
+                    'accuracy': stats.accuracies[-1] if stats.accuracies else 0.0,
+                    'all_runs': stats.accuracies
+                }
+
+            except Exception as e:
+                print(f"✗ Error testing {language}: {e}")
+                results[language] = {'accuracy': 0.0, 'error': str(e)}
+            finally:
+                args.language = original_language
+
+        # Print aggregated results
+        print("\n" + "=" * 70)
+        print("MULTILINGUAL RESULTS SUMMARY")
+        print("=" * 70)
+
+        valid_results = {lang: res for lang, res in results.items() if 'error' not in res}
+
+        for language in languages:
+            if language in valid_results:
+                acc = valid_results[language]['accuracy']
+                print(f"  ✓ {language.upper():3s}: {acc:6.2f}%")
+            else:
+                error = results[language].get('error', 'Unknown error')
+                print(f"  ✗ {language.upper():3s}: FAILED ({error})")
+
+        if valid_results:
+            accuracies = [res['accuracy'] for res in valid_results.values()]
+            mean_acc = sum(accuracies) / len(accuracies)
+
+            if len(accuracies) > 1:
+                variance = sum((x - mean_acc) ** 2 for x in accuracies) / (len(accuracies) - 1)
+                std_acc = variance ** 0.5
+            else:
+                std_acc = 0.0
+
+            print("-" * 70)
+            print(f"  Mean Accuracy:  {mean_acc:.2f}%  (std: {std_acc:.2f}%)")
+            print(f"  Min/Max:        {min(accuracies):.2f}% / {max(accuracies):.2f}%")
+            print(f"  Success Rate:   {len(valid_results)}/{len(languages)} languages")
+            print("-" * 70)
+
         print("\nAll done!")
 
 
@@ -184,7 +303,9 @@ def general_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--num_runs",     type=int, default=1,
                         help="Independent experiment runs")
     parser.add_argument("--language",     default="en",
-                        help="Language for MGSM benchmark (en, de, fr, es, ru, zh, ja, th, sw, bn)")
+                        help="Language for MGSM benchmark (en, de, fr, es, ru, zh, ja, th, sw, bn, or 'all' for all languages)")
+    parser.add_argument("--languages",    nargs="+", default=None,
+                        help="MGSM: test multiple languages (e.g. --languages en zh ja), overrides --language")
 
 def rot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("RoT")
