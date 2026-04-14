@@ -27,6 +27,11 @@ class QwenClient(BaseLLM):
         config = get_config()
         key = api_key or os.getenv("API_KEY") or "local"
         model = model or config["models"]["qwen"]
+
+        # Remove "qwen:" prefix if present (used by main.py for client selection)
+        if model.startswith("qwen:"):
+            model = model.split(":", 1)[1]
+
         super().__init__(key, model)
         base_url = config["llm"]["local"]["base_url"]
         self.client = OpenAI(api_key=self.api_key, base_url=base_url)

@@ -1,13 +1,11 @@
-#!/bin/bash
-
 # =======================================================================================
 # Script Name:    setup_ollama_gpu.sh
-# Description:    Automates the installation of Docker and the NVIDIA Container Toolkit
-#                 (pinned to v1.18.1) for GPU-accelerated container support.
-#                 Prepares environment for running LLM models via vLLM or other services.
+# Description:    Automates the installation of Docker and the NVIDIA Container Toolkit 
+#                 (pinned to v1.18.1), then launches Ollama with GPU support.
+
 # Author:         Egor Alekseyevich Morozov
 # Date:           2025-01-28
-# Version:        2.0 (Refactored: removed Ollama, kept GPU setup)
+# Version:        1.1
 # Requirements:   - Ubuntu/Debian-based Linux distribution
 #                 - Sudo/Root privileges
 #                 - NVIDIA GPU with proprietary drivers installed
@@ -23,7 +21,7 @@ echo "--- Step 1: Checking Docker Installation ---"
 if ! command -v docker &> /dev/null; then
     echo "Docker not found. Installing via get.docker.com..."
     curl -fsSL https://get.docker.com | sh
-    
+
     # Start Docker and enable it to start on boot
     sudo systemctl enable --now docker
 else
@@ -84,17 +82,16 @@ echo "Verifying NVIDIA Container Toolkit installation with a test container..."
 # Using a slightly newer CUDA base tag to ensure compatibility with modern cards
 sudo docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
 
+# ==========================================
+# 5. Run Ollama inside a Docker container
+# ==========================================
+echo "--- Step 5: Launching Ollama ---"
+echo "Running Ollama inside a Docker container..."
+
+# Added 'sudo' here for consistency. 
+# If the user is not in the 'docker' group, running without sudo would fail.
+sudo docker run -d --gpus=all --restart=unless-stopped -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+
 echo "=========================================="
-echo "✅ Setup Complete! GPU environment ready."
-echo ""
-echo "Next steps:"
-echo "1. Deploy your LLM model via Docker:"
-echo "   docker run -d --name my-model --gpus all -p 8000:8000 \\"
-echo "     vllm/vllm-openai:latest --model Qwen/Qwen2.5-7B-Instruct"
-echo ""
-echo "2. Verify GPU access in container:"
-echo "   docker exec my-model nvidia-smi"
-echo ""
-echo "3. Run evaluation:"
-echo "   python main.py --model ... --baseline ... --benchmark ..."
-echo "=========================================="
+echo "Setup Complete! Ollama is running."
+echo "Access it at: http://localhost:11434"
