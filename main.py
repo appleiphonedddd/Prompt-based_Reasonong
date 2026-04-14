@@ -173,7 +173,13 @@ class Evaluator:
     def run(self) -> None:
         args = self.args
 
-        # Determine languages to test
+        # Only apply multilingual logic if the benchmark is MGSM
+        if args.benchmark.lower() != "mgsm":
+            # For non-MGSM benchmarks, use 'en' as default and ignore --language arg
+            self._run_single_language("en")
+            return
+
+        # For MGSM: determine languages to test
         languages = self._get_languages_to_test()
 
         # If only one language, run normally
@@ -246,8 +252,8 @@ class Evaluator:
                     stats.add_result(accuracy)
 
                 results[language] = {
-                    'accuracy': stats.accuracies[-1] if stats.accuracies else 0.0,
-                    'all_runs': stats.accuracies
+                    'accuracy': stats.accuracy_list[-1] if stats.accuracy_list else 0.0,
+                    'all_runs': stats.accuracy_list
                 }
 
             except Exception as e:
@@ -302,7 +308,7 @@ def general_args(parser: argparse.ArgumentParser) -> None:
                         help="Baseline: standard | zerocot | zerocot_single | rot | tot | bot | got")
     parser.add_argument("--num_runs",     type=int, default=1,
                         help="Independent experiment runs")
-    parser.add_argument("--language",     default="en",
+    parser.add_argument("--language",     default="all",
                         help="Language for MGSM benchmark (en, de, fr, es, ru, zh, ja, th, sw, bn, or 'all' for all languages)")
     parser.add_argument("--languages",    nargs="+", default=None,
                         help="MGSM: test multiple languages (e.g. --languages en zh ja), overrides --language")
