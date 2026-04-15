@@ -221,19 +221,17 @@ BASELINE_REGISTRY = {
 conda env create -f env.yaml
 conda activate Prompt
 
-# 2. Setup GPU/Ollama environment (first time only)
+# 2. Setup GPU/Ollama docker environment (first time only)
 ./setup_ollama_gpu.sh
 
-# 3. Set API keys (optional, only if using cloud models)
-export API_KEY="your_openai_key"
-export GEMINI_API_KEY="your_gemini_key"
+# 3. Set API keys
+export API_KEY="ollama"
 
 # 4. Pull and run local model via Ollama
-ollama pull qwen:7b
-ollama serve
+docker exec -it ollama ollama run qwen2.5:3b
 
 # 5. Run evaluation (no API key needed for local models)
-python main.py --model "qwen:7b" --baseline standard --benchmark mgsm
+python main.py --model qwen2.5:3b --baseline standard --benchmark mgsm
 ```
 
 ### Token Tracking & Metrics
