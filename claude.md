@@ -6,7 +6,7 @@
 
 - **Multiple LLM Providers**: OpenAI (GPT), DeepSeek, Meta (Llama), Google (Gemini), Alibaba (Qwen), Mistral, and Google (Gemma)
 - **Prompting Baselines**: Standard input, Zero-Shot CoT, Reversal-of-Thought (RoT), Tree-of-Thought (ToT), Buffer-of-Thought (BoT), and Graph-of-Thought (GoT)
-- **Reasoning Benchmarks**: Game of 24, MGSM (Multilingual Grade School Math), Sonnet Writing, BigBench Hard (Geometric Shapes, Multi-Step Arithmetic, Word Sorting, Checkmate-in-One), and Programming Puzzles
+- **Reasoning Benchmarks**: Game of 24, MGSM (Multilingual Grade School Math), Sonnet Writing, BigBenchHard (all 27 tasks), and Programming Puzzles
 
 The framework provides standardized evaluation metrics (accuracy, efficiency) and supports both local models (via Ollama) and cloud-based APIs.
 
@@ -90,9 +90,9 @@ Prompt-based-Reasoning/
 │   ├── GameOf24/            # Game of 24 benchmark
 │   ├── MGSM/                # Multilingual Grade School Math
 │   ├── SonnetWriting/       # Shakespearean sonnet generation
-│   ├── BigBench/            # BIG-Bench Hard tasks
+│   ├── BigBenchHard/        # All 27 BIG-Bench Hard tasks
 │   │   ├── __init__.py
-│   │   └── bigbench.py      # (Geometric Shapes, Multi-Step Arithmetic, Word Sorting, Checkmate-in-One)
+│   │   └── bigbenchhard.py  # (Boolean, Logic, Arithmetic, Sorting, etc.)
 │   └── ProgrammingPuzzles/  # Programming challenge dataset
 │
 ├── utils/                   # Utility Modules
@@ -376,30 +376,41 @@ python main.py --model <model_name> --baseline <baseline_name> --benchmark <benc
 
 ## Recent Additions
 
-### BigBench Benchmark (Latest)
-Complete implementation of four BIG-Bench Hard (BBH) reasoning tasks:
+### BigBenchHard Benchmark (Latest)
+Complete implementation of **all 27 BIG-Bench Hard (BBH)** reasoning tasks:
 
-1. **Geometric Shapes** (71 problems): Logical reasoning about geometric properties
-2. **Multi-Step Arithmetic** (3,004 problems): Complex arithmetic requiring multiple reasoning steps
-3. **Word Sorting** (380 problems): Ordering words alphabetically or by custom criteria
-4. **Checkmate-in-One** (699 problems): Chess positions requiring mate-in-one solutions
+**Tasks by Category**:
+- **Boolean/Yes-No** (12 tasks): boolean_expressions, causal_judgement, formal_fallacies, geometric_shapes, logical_deduction (3/5/7 objects), object_counting, penguins_in_a_table, reasoning_about_colored_objects, snarks, sports_understanding, web_of_lies
+- **Multiple-Choice** (3 tasks): disambiguation_qa, movie_recommendation, salient_translation_error_detection
+- **Numeric** (2 tasks): multistep_arithmetic_two, object_counting
+- **Special** (9 tasks): date_understanding, dyck_languages, hyperbaton, navigate, ruin_names, temporal_sequences, tracking_shuffled_objects (3/5/7 objects), word_sorting
 
 **Key Features**:
 - Robust answer extraction handling markdown, LaTeX, and various output formats
-- Task-specific evaluation: case-insensitive matching for shapes/arithmetic, alphabetical normalization for word lists, chess move normalization
-- Task name mapping to HuggingFace dataset configs (e.g., `multistep_arithmetic_two` maps to `arithmetic` in the `tasksource/bigbench` dataset)
-- Full compatibility with all seven baselines (standard, zerocot, zerocot_single, rot, tot, bot, got)
-- Comprehensive test suite (14 unit tests, all passing)
+- **Task-specific answer normalization**: Boolean (True/False variants), numeric (extract numbers), multiple-choice (extract letters A-E), word lists (sort alphabetically)
+- Comprehensive `TASK_ANSWER_TYPES` classification table for driven evaluation logic
+- Full compatibility with all 7 baselines (standard, zerocot, zerocot_single, rot, tot, bot, got)
+- Comprehensive test suite (24 unit tests, all passing)
+- Task-specific system prompts and instructions for each of 27 tasks
 
-**Data Source**: HuggingFace `tasksource/bigbench` dataset (Parquet-based, no deprecated script loading)
+**Data Source**: HuggingFace `maveriq/bigbenchhard` dataset (250 samples per task, train split only)
 
-**CLI Usage**:
+**CLI Usage** (all 7 baselines work seamlessly):
 ```bash
-python main.py --benchmark bigbench --bigbench_task geometric_shapes \
+# Boolean expression evaluation
+python main.py --benchmark bigbenchhard --bigbenchhard_task boolean_expressions \
   --baseline zerocot --model qwen2.5:14b --num_runs 5
+
+# Word sorting with different baseline
+python main.py --benchmark bigbenchhard --bigbenchhard_task word_sorting \
+  --baseline tot --model gpt:gpt-4 --num_runs 3
+
+# Multi-step arithmetic
+python main.py --benchmark bigbenchhard --bigbenchhard_task multistep_arithmetic_two \
+  --baseline bot --model llama3.1:70b --num_runs 2
 ```
 
-**Files**: `benchmark/BigBench/bigbench.py`, `tests/test_bigbench.py`
+**Files**: `benchmark/BigBenchHard/bigbenchhard.py`, `tests/test_bigbenchhard.py`
 
 ---
 

@@ -17,6 +17,7 @@ from baseline.Standard import Input
 from utils.metrics import Efficiency, Accuracy
 from utils.get_mean_std import AccuracyStatistics
 from benchmark import DATASET_REGISTRY
+from benchmark.BigBenchHard.bigbenchhard import BigBenchHardTask
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -308,7 +309,7 @@ def general_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--model",        default="qwen2.5:14b",
                         help="Model name (prefix = provider, e.g. 'gemini:...')")
     parser.add_argument("--benchmark",    default="gameof24",
-                        help="Benchmark / dataset name (gameof24, mgsm, sonnetwriting, bigbench)")
+                        help="Benchmark / dataset name (gameof24, mgsm, sonnetwriting, bigbenchhard)")
     parser.add_argument("--baseline",     default="zerocot",
                         help="Baseline: standard | zerocot | zerocot_single | rot | tot | bot | got")
     parser.add_argument("--num_runs",     type=int, default=1,
@@ -317,11 +318,11 @@ def general_args(parser: argparse.ArgumentParser) -> None:
                         help="Language for MGSM benchmark (en, de, fr, es, ru, zh, ja, th, sw, bn, or 'all' for all languages)")
     parser.add_argument("--languages",    nargs="+", default=None,
                         help="MGSM: test multiple languages (e.g. --languages en zh ja), overrides --language")
-    parser.add_argument("--bigbench_task", default="geometric_shapes",
-                        choices=["geometric_shapes", "multistep_arithmetic_two", "word_sorting", "checkmate_in_one"],
-                        help="BigBench task (only used when --benchmark=bigbench)")
-    parser.add_argument("--split", default="validation",
-                        help="Dataset split (default: validation for most datasets)")
+    parser.add_argument("--bigbenchhard_task", default="boolean_expressions",
+                        choices=[t.value for t in BigBenchHardTask],
+                        help="BigBenchHard task (only used when --benchmark=bigbenchhard)")
+    parser.add_argument("--split", default="train",
+                        help="Dataset split (default: train for BigBenchHard, validation for others)")
 
 def rot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("RoT")
