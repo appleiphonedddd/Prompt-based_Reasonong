@@ -225,10 +225,21 @@ class GameOf24(DatasetBase):
         clean = re.sub(r"\\left\s*", "", clean)
         clean = re.sub(r"\\right\s*", "", clean)
 
-        # Try to isolate just the arithmetic expression
-        # (models sometimes write "The answer is (2+5)*8/11 = 24")
-        expr_match = re.search(r"[\d\s()+\-*/%.]+", clean)
-        expr = expr_match.group(0).strip() if expr_match else clean
+        # Try to isolate the arithmetic expression.
+        # Models often write "The answer is (2+5)*8/11 = 24" or include
+        # natural-language text before the expression.  Rather than taking
+        # the first regex match (which tends to be a whitespace fragment),
+        # collect ALL candidate segments and try each one from last to first,
+        # preferring the one that evaluates to 24 with the right numbers.
+        candidates = re.findall(r"[\d\s()+\-*/%.]+", clean)
+        # Try candidates from last to first so that the "final expression"
+        # in the model output is preferred over any numbers in the preamble.
+        expr = clean  # fallback
+        for candidate in reversed(candidates):
+            stripped = candidate.strip()
+            if stripped:
+                expr = stripped
+                break
 
         details: dict = {"raw_prediction": prediction, "parsed_expression": expr}
 

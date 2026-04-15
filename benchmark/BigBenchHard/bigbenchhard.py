@@ -345,12 +345,17 @@ class BigBenchHard(DatasetBase):
         text = _normalize_whitespace(text).lower().strip()
 
         if answer_type == "boolean":
-            # Normalize boolean answers
-            if text in ("true", "yes", "correct", "1", "(a)"):
+            # Normalize boolean answers — use word-boundary search so extra
+            # words after the answer ("True, because...") don't cause false negatives.
+            if re.search(r"\b(true|yes|correct)\b", text):
                 return "true"
-            elif text in ("false", "no", "incorrect", "0", "(b)"):
+            elif re.search(r"\b(false|no|incorrect)\b", text):
                 return "false"
-            # Keep original if not matching
+            # Numeric shorthands
+            if text.strip() in ("1", "(a)"):
+                return "true"
+            if text.strip() in ("0", "(b)"):
+                return "false"
             return text
 
         elif answer_type == "numeric":

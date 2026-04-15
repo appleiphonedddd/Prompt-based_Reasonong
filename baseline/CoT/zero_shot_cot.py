@@ -132,7 +132,19 @@ class ZeroShotCoT(BaseBaseline):
                 answer = answer[len(prefix):].strip()
 
         answer = answer.rstrip(".")
-        
+
+        # If the answer starts with a short decisive keyword (True/False/Yes/No
+        # or a choice letter like "(A)"), truncate there so that extra
+        # explanation on the same line ("True, because...") does not pollute
+        # downstream normalizers.
+        _short_answer_re = re.compile(
+            r"^(true|false|yes|no|correct|incorrect|\([a-e]\)|\d+)",
+            re.IGNORECASE,
+        )
+        m = _short_answer_re.match(answer)
+        if m:
+            answer = m.group(1)
+
         return answer
 
     def run(
