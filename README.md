@@ -76,3 +76,7 @@ Run benchmarks on local Ollama models:
 ```sh
 python main.py --model qwen2.5:3b --baseline standard
 ```
+
+```sh
+python main.py --model qwen2.5:3b --baseline standard --benchmark bigbenchhard --bigbenchhard_task geometric_shapes
+```
