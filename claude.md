@@ -5,7 +5,7 @@
 **Prompt-based Reasoning** is a comprehensive framework for evaluating and benchmarking Large Language Models (LLMs) on complex reasoning tasks using various prompting strategies. The project enables systematic comparison of:
 
 - **Multiple LLM Providers**: OpenAI (GPT), DeepSeek, Meta (Llama), Google (Gemini), Alibaba (Qwen), Mistral, and Google (Gemma)
-- **Prompting Baselines**: Standard input, Zero-Shot CoT, Reflection-of-Thought (RoT), Tree-of-Thought (ToT), Buffer-of-Thought (BoT), and Graph-of-Thought (GoT)
+- **Prompting Baselines**: Standard input, Zero-Shot CoT, Reversal-of-Thought (RoT), Tree-of-Thought (ToT), Buffer-of-Thought (BoT), and Graph-of-Thought (GoT)
 - **Reasoning Benchmarks**: Game of 24, MGSM (Multilingual Grade School Math), Sonnet Writing, and Programming Puzzles
 
 The framework provides standardized evaluation metrics (accuracy, efficiency) and supports both local models (via Ollama) and cloud-based APIs.
@@ -71,7 +71,7 @@ Prompt-based-Reasoning/
 │   ├── CoT/                 # Chain-of-Thought
 │   │   ├── __init__.py
 │   │   └── cot.py
-│   ├── RoT/                 # Reflection-of-Thought
+│   ├── RoT/                 # Reversal-of-Thought
 │   │   ├── __init__.py
 │   │   └── rot.py
 │   ├── ToT/                 # Tree-of-Thought
