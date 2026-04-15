@@ -6,7 +6,7 @@
 
 - **Multiple LLM Providers**: OpenAI (GPT), DeepSeek, Meta (Llama), Google (Gemini), Alibaba (Qwen), Mistral, and Google (Gemma)
 - **Prompting Baselines**: Standard input, Zero-Shot CoT, Reversal-of-Thought (RoT), Tree-of-Thought (ToT), Buffer-of-Thought (BoT), and Graph-of-Thought (GoT)
-- **Reasoning Benchmarks**: Game of 24, MGSM (Multilingual Grade School Math), Sonnet Writing, and Programming Puzzles
+- **Reasoning Benchmarks**: Game of 24, MGSM (Multilingual Grade School Math), Sonnet Writing, BigBench Hard (Geometric Shapes, Multi-Step Arithmetic, Word Sorting, Checkmate-in-One), and Programming Puzzles
 
 The framework provides standardized evaluation metrics (accuracy, efficiency) and supports both local models (via Ollama) and cloud-based APIs.
 
@@ -86,9 +86,13 @@ Prompt-based-Reasoning/
 │
 ├── benchmark/               # Reasoning Task Datasets
 │   ├── __init__.py          # DATASET_REGISTRY
+│   ├── datasetbase.py       # Abstract DatasetBase class
 │   ├── GameOf24/            # Game of 24 benchmark
 │   ├── MGSM/                # Multilingual Grade School Math
 │   ├── SonnetWriting/       # Shakespearean sonnet generation
+│   ├── BigBench/            # BIG-Bench Hard tasks
+│   │   ├── __init__.py
+│   │   └── bigbench.py      # (Geometric Shapes, Multi-Step Arithmetic, Word Sorting, Checkmate-in-One)
 │   └── ProgrammingPuzzles/  # Programming challenge dataset
 │
 ├── utils/                   # Utility Modules
@@ -304,7 +308,9 @@ DATASET_REGISTRY["mybench"] = (MyBenchmark, lambda _: {})
 # Add to __all__: "MyBenchmark"
 ```
 
-**Real example**: See `benchmark/SonnetWriting/` for a complete implementation evaluating Shakespearean sonnets on three criteria (word inclusion, structure, rhyme scheme).
+**Real examples**:
+- `benchmark/SonnetWriting/`: Evaluates Shakespearean sonnets on three criteria (word inclusion, structure, rhyme scheme)
+- `benchmark/BigBench/`: Multi-task reasoning benchmark with task-specific answer extraction and evaluation logic. Features task name mapping to HuggingFace dataset configs for compatibility with datasets using different config names.
 
 ### Logging & Debugging
 
@@ -370,7 +376,34 @@ python main.py --model <model_name> --baseline <baseline_name> --benchmark <benc
 
 ## Recent Additions
 
-### SonnetWriting Benchmark (Latest)
+### BigBench Benchmark (Latest)
+Complete implementation of four BIG-Bench Hard (BBH) reasoning tasks:
+
+1. **Geometric Shapes** (71 problems): Logical reasoning about geometric properties
+2. **Multi-Step Arithmetic** (3,004 problems): Complex arithmetic requiring multiple reasoning steps
+3. **Word Sorting** (380 problems): Ordering words alphabetically or by custom criteria
+4. **Checkmate-in-One** (699 problems): Chess positions requiring mate-in-one solutions
+
+**Key Features**:
+- Robust answer extraction handling markdown, LaTeX, and various output formats
+- Task-specific evaluation: case-insensitive matching for shapes/arithmetic, alphabetical normalization for word lists, chess move normalization
+- Task name mapping to HuggingFace dataset configs (e.g., `multistep_arithmetic_two` maps to `arithmetic` in the `tasksource/bigbench` dataset)
+- Full compatibility with all seven baselines (standard, zerocot, zerocot_single, rot, tot, bot, got)
+- Comprehensive test suite (14 unit tests, all passing)
+
+**Data Source**: HuggingFace `tasksource/bigbench` dataset (Parquet-based, no deprecated script loading)
+
+**CLI Usage**:
+```bash
+python main.py --benchmark bigbench --bigbench_task geometric_shapes \
+  --baseline zerocot --model qwen2.5:14b --num_runs 5
+```
+
+**Files**: `benchmark/BigBench/bigbench.py`, `tests/test_bigbench.py`
+
+---
+
+### SonnetWriting Benchmark
 A generative creative task evaluating Shakespearean sonnet generation. Models are evaluated on:
 - **Word inclusion** (1/3): All 3 provided words must appear verbatim
 - **Structure** (1/3): Exactly 14 lines required
