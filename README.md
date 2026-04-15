@@ -23,7 +23,7 @@ This project provides tools to benchmark reasoning capabilities of both local (D
 
 Before running the deployment scripts, ensure your system meets the following hardware and software requirements:
 
-- **Operating System**: Ubuntu 24.04.03 LTS (Linux-based)
+- **Operating System**: Ubuntu 24.04.04 LTS (Linux-based)
 - **GPU**: NVIDIA GeForce RTX 5070 or higher (CUDA-enabled)
 - **CUDA Toolkit**: 12.x (ensure compatibility with your GPU drivers)
 - **Docker**: Required for running local models via Ollama
