@@ -31,8 +31,8 @@ Supports all 27 BIG-Bench Hard reasoning tasks:
     27. word_sorting — Alphabetical word sorting
 
 HuggingFace source:
-    dataset: "maveriq/bigbenchhard"
-    split: "train" (only available split, 250 per task)
+    dataset: "lukaemon/bbh"
+    split: "test" (only available split, 250 per task)
     target: string (either "True"/"False" or specific answer)
 
 Evaluation strategy:
@@ -183,14 +183,14 @@ class BigBenchHard(DatasetBase):
         result = ds.evaluate_answer("False", problem.ground_truth)
     """
 
-    HF_DATASET_ID = "maveriq/bigbenchhard"
+    HF_DATASET_ID = "lukaemon/bbh"
 
-    def __init__(self, task: str = "boolean_expressions", split: str = "train"):
+    def __init__(self, task: str = "boolean_expressions", split: str = "test"):
         """Initialize BigBenchHard dataset for a specific task.
 
         Args:
             task: Task name (must be one of the 27 BBH tasks).
-            split: HuggingFace split ("train" only for this dataset).
+            split: HuggingFace split ("test" only for this dataset).
 
         Raises:
             ValueError: If task is not recognized.

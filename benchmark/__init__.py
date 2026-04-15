@@ -39,7 +39,7 @@ DATASET_REGISTRY: dict[str, tuple] = {
     "gameof24":      (GameOf24,       lambda _: {}),
     "mgsm":          (MGSM,           lambda a: dict(language=a.language)),
     "sonnetwriting": (SonnetWriting,  lambda _: {}),
-    "bigbenchhard":  (BigBenchHard,   lambda a: dict(task=a.bigbenchhard_task, split=a.split if hasattr(a, 'split') else 'train')),
+    "bigbenchhard":  (BigBenchHard,   lambda a: dict(task=a.bigbenchhard_task, split=a.split if hasattr(a, 'split') else 'test')),
 }
 
 __all__ = [

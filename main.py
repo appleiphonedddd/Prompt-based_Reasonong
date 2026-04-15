@@ -321,8 +321,8 @@ def general_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--bigbenchhard_task", default="boolean_expressions",
                         choices=[t.value for t in BigBenchHardTask],
                         help="BigBenchHard task (only used when --benchmark=bigbenchhard)")
-    parser.add_argument("--split", default="train",
-                        help="Dataset split (default: train for BigBenchHard, validation for others)")
+    parser.add_argument("--split", default="test",
+                        help="Dataset split (default: test for BigBenchHard)")
 
 def rot_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("RoT")
