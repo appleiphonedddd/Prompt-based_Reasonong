@@ -278,6 +278,12 @@ class SonnetWriting(DatasetBase):
         lines = [line.strip() for line in prediction.split("\n")]
         non_empty_lines = [line for line in lines if line]
 
+        # If the model appended explanation text after the sonnet (e.g.
+        # "This sonnet adheres to…"), truncate to the first 14 non-empty
+        # lines so the explanation block does not inflate the line count.
+        if len(non_empty_lines) > 14:
+            non_empty_lines = non_empty_lines[:14]
+
         structure_correct = len(non_empty_lines) == 14
         structure_score = 1.0 if structure_correct else 0.0
 
