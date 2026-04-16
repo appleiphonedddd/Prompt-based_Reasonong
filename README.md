@@ -78,5 +78,20 @@ python main.py --model qwen2.5:3b --baseline standard --benchmark gameof24
 ```
 
 ```sh
+python main.py --model qwen2.5:3b --baseline tot --benchmark gameof24 \
+  --tot_n_generate 2 \
+  --tot_n_evaluate 1 \
+  --tot_breadth 2 \
+  --tot_max_steps 1
+```
+
+```sh
+python main.py --model qwen2.5:3b --baseline got --benchmark gameof24 \
+  --got_branches 3 \
+  --got_keep 1 \
+  --got_refine 0
+```
+
+```sh
 python main.py --model qwen2.5:3b --baseline standard --benchmark bigbenchhard --bigbenchhard_task geometric_shapes
 ```
