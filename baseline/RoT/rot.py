@@ -705,7 +705,12 @@ class RoT(BaseBaseline):
 
         # ── Stage 4: Instantiation ──
         instantiation_sys = self.build_instantiation_prompt(p_final)
-        question_prompt = f"{instantiation_sys}\n\n{question}"
+        task_context = ""
+        if system_prompt:
+            task_context += f"{system_prompt}\n"
+        if instruction:
+            task_context += f"{instruction}\n"
+        question_prompt = f"{instantiation_sys}\n\n{task_context}{question}"
         response = self.call_llm(question_prompt, temperature=inst_temp)
         final_answer, thinking = self.parse_instantiation_response(
             response.content
