@@ -81,40 +81,49 @@ class BigBenchHardTask(Enum):
     WORD_SORTING = "word_sorting"
 
 
-# Classification of tasks by answer type for evaluation
+# Classification of tasks by answer type for evaluation.
+#
+# BBH ground-truth formats (verified against lukaemon/bbh dataset):
+#   boolean  – True/False, Yes/No, valid/invalid
+#   choice   – multiple-choice letter such as (A), (B), …
+#   numeric  – integer or decimal number
+#   word_list – space-separated sorted words
+#   default  – bracket sequence or other free-form text
 TASK_ANSWER_TYPES = {
-    # Boolean/Yes-No tasks
-    "boolean_expressions": "boolean",
-    "causal_judgement": "boolean",
-    "formal_fallacies": "boolean",
-    "geometric_shapes": "boolean",
-    "logical_deduction_three_objects": "boolean",
-    "logical_deduction_five_objects": "boolean",
-    "logical_deduction_seven_objects": "boolean",
-    "object_counting": "numeric",
-    "penguins_in_a_table": "boolean",
-    "reasoning_about_colored_objects": "boolean",
-    "snarks": "boolean",
-    "sports_understanding": "boolean",
-    "web_of_lies": "boolean",
+    # Boolean/Yes-No/valid-invalid tasks  (ground truth is a keyword, not a letter)
+    "boolean_expressions": "boolean",       # True / False
+    "causal_judgement": "boolean",          # Yes / No
+    "formal_fallacies": "boolean",          # valid / invalid
+    "navigate": "boolean",                  # Yes / No
+    "sports_understanding": "boolean",      # Yes / No
+    "web_of_lies": "boolean",               # Yes / No
 
-    # Multiple choice / selection tasks
+    # Multiple-choice tasks  (ground truth is a letter like "(A)")
+    "date_understanding": "choice",
     "disambiguation_qa": "choice",
+    "geometric_shapes": "choice",
+    "hyperbaton": "choice",
+    "logical_deduction_three_objects": "choice",
+    "logical_deduction_five_objects": "choice",
+    "logical_deduction_seven_objects": "choice",
     "movie_recommendation": "choice",
-
-    # Special handling tasks
-    "date_understanding": "default",
-    "dyck_languages": "default",  # Bracket sequences
-    "hyperbaton": "default",      # Word order
-    "multistep_arithmetic_two": "numeric",
-    "navigate": "default",
-    "ruin_names": "default",
+    "penguins_in_a_table": "choice",
+    "reasoning_about_colored_objects": "choice",
+    "ruin_names": "choice",
     "salient_translation_error_detection": "choice",
-    "temporal_sequences": "default",
-    "tracking_shuffled_objects_three_objects": "default",
-    "tracking_shuffled_objects_five_objects": "default",
-    "tracking_shuffled_objects_seven_objects": "default",
-    "word_sorting": "word_list",
+    "snarks": "choice",
+    "temporal_sequences": "choice",
+    "tracking_shuffled_objects_three_objects": "choice",
+    "tracking_shuffled_objects_five_objects": "choice",
+    "tracking_shuffled_objects_seven_objects": "choice",
+
+    # Numeric tasks
+    "multistep_arithmetic_two": "numeric",
+    "object_counting": "numeric",
+
+    # Free-form / special tasks
+    "dyck_languages": "default",    # bracket sequences, e.g. "[ ] ( )"
+    "word_sorting": "word_list",    # space-separated alphabetically sorted words
 }
 
 
@@ -347,9 +356,10 @@ class BigBenchHard(DatasetBase):
         if answer_type == "boolean":
             # Normalize boolean answers — use word-boundary search so extra
             # words after the answer ("True, because...") don't cause false negatives.
-            if re.search(r"\b(true|yes|correct)\b", text):
+            # Also handles valid/invalid for formal_fallacies.
+            if re.search(r"\b(true|yes|correct|valid)\b", text):
                 return "true"
-            elif re.search(r"\b(false|no|incorrect)\b", text):
+            elif re.search(r"\b(false|no|incorrect|invalid)\b", text):
                 return "false"
             # Numeric shorthands
             if text.strip() in ("1", "(a)"):
@@ -366,8 +376,12 @@ class BigBenchHard(DatasetBase):
             return text
 
         elif answer_type == "choice":
-            # Extract choice letter (A, B, C, D, E)
-            match = re.search(r"\(?([a-e])\)?", text)
+            # Extract choice letter (A–Z).  Try parenthesised form first
+            # ("(A)", "(b)"), then bare letter at word boundary.
+            match = re.search(r"\(([a-z])\)", text)
+            if match:
+                return match.group(1)
+            match = re.search(r"\b([a-z])\b", text)
             if match:
                 return match.group(1)
             return text

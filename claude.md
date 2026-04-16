@@ -380,10 +380,10 @@ python main.py --model <model_name> --baseline <baseline_name> --benchmark <benc
 Complete implementation of **all 27 BIG-Bench Hard (BBH)** reasoning tasks:
 
 **Tasks by Category**:
-- **Boolean/Yes-No** (12 tasks): boolean_expressions, causal_judgement, formal_fallacies, geometric_shapes, logical_deduction (3/5/7 objects), object_counting, penguins_in_a_table, reasoning_about_colored_objects, snarks, sports_understanding, web_of_lies
-- **Multiple-Choice** (3 tasks): disambiguation_qa, movie_recommendation, salient_translation_error_detection
+- **Boolean/Yes-No/valid-invalid** (6 tasks): boolean_expressions, causal_judgement, formal_fallacies, navigate, sports_understanding, web_of_lies
+- **Multiple-Choice letter (A/B/…)** (17 tasks): date_understanding, disambiguation_qa, geometric_shapes, hyperbaton, logical_deduction (3/5/7 objects), movie_recommendation, penguins_in_a_table, reasoning_about_colored_objects, ruin_names, salient_translation_error_detection, snarks, temporal_sequences, tracking_shuffled_objects (3/5/7 objects)
 - **Numeric** (2 tasks): multistep_arithmetic_two, object_counting
-- **Special** (9 tasks): date_understanding, dyck_languages, hyperbaton, navigate, ruin_names, temporal_sequences, tracking_shuffled_objects (3/5/7 objects), word_sorting
+- **Free-form / Special** (2 tasks): dyck_languages (bracket sequence), word_sorting (sorted word list)
 
 **Key Features**:
 - Robust answer extraction handling markdown, LaTeX, and various output formats
