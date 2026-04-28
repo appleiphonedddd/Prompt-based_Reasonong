@@ -113,7 +113,10 @@ conda activate Prompt
 ./setup_ollama_gpu.sh
 
 # Pull a model
-docker exec -it ollama ollama pull qwen2.5:3b
+docker exec -it ollama ollama run qwen2.5:3b
+
+# Remove a model
+docker exec -it ollama ollama rm qwen2.5:3b
 
 # Run your first evaluation
 export API_KEY="ollama"
