@@ -382,8 +382,8 @@ def got_args(parser: argparse.ArgumentParser) -> None:
 
 def pp_args(parser: argparse.ArgumentParser) -> None:
     g = parser.add_argument_group("ProgrammingPuzzles")
-    g.add_argument("--pp_num_samples", type=int, default=50,
-                   help="ProgrammingPuzzles: number of puzzles to evaluate (default: 50)")
+    g.add_argument("--pp_num_samples", type=int, default=None,
+                   help="ProgrammingPuzzles: number of puzzles to evaluate (default: all 1715)")
     g.add_argument("--pp_module", default=None,
                    help="ProgrammingPuzzles: filter by module category "
                         "(e.g. study.py, basic.py, IMO.py; default: all modules)")
