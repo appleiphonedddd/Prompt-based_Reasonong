@@ -32,12 +32,12 @@ The gap widens on harder tasks — multi-step math, logical deduction, creative 
 
 | # | Baseline | Key Idea | Reference |
 |---|---|---|---|
-| 1 | **Standard** | Direct question → answer | [Brown et al., NeurIPS 2020](https://arxiv.org/abs/2005.14165) |
-| 2 | **Zero-Shot CoT** | "Let's think step by step" | [Kojima et al., NeurIPS 2022](https://arxiv.org/abs/2205.11916) |
-| 3 | **Tree-of-Thought (ToT)** | Explore & evaluate multiple reasoning paths | [Yao et al., NeurIPS 2023](https://arxiv.org/abs/2305.10601) |
-| 4 | **Graph-of-Thought (GoT)** | Non-linear thought graphs with merging | [Besta et al., AAAI 2024](https://arxiv.org/abs/2308.09687) |
-| 5 | **Buffer-of-Thought (BoT)** | Retrieve & reuse thought templates | [Yang et al., NeurIPS 2024](https://arxiv.org/abs/2406.04271) |
-| 6 | **Reversal-of-Thought (RoT)** | Preference-guided reverse reasoning warm-up | [Yuan et al., ACL 2025](https://arxiv.org/abs/2410.12323) |
+| 1 | **Standard** | Direct question → answer | [Brown et al., NeurIPS 2020](https://papers.nips.cc/paper_files/paper/2020/file/1457c0d6bfcb4967418bfb8ac142f64a-Paper.pdf) |
+| 2 | **Zero-Shot CoT** | "Let's think step by step" | [Kojima et al., NeurIPS 2022](https://openreview.net/pdf?id=e2TBb5y0yFf) |
+| 3 | **Tree-of-Thought (ToT)** | Explore & evaluate multiple reasoning paths | [Yao et al., NeurIPS 2023](https://openreview.net/pdf?id=5Xc1ecxO1h) |
+| 4 | **Graph-of-Thought (GoT)** | Non-linear thought graphs with merging | [Besta et al., AAAI 2024](https://ojs.aaai.org/index.php/AAAI/article/view/29720) |
+| 5 | **Buffer-of-Thought (BoT)** | Retrieve & reuse thought templates | [Yang et al., NeurIPS 2024](https://openreview.net/pdf?id=ANO1i9JPtb) |
+| 6 | **Reversal-of-Thought (RoT)** | Preference-guided reverse reasoning warm-up | [Yuan et al., ACL 2025](https://aclanthology.org/2025.acl-long.955.pdf) |
 
 ---
 
