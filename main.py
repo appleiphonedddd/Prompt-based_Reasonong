@@ -380,6 +380,15 @@ def got_args(parser: argparse.ArgumentParser) -> None:
                    help="Sampling temperature for final answer aggregation (0 = deterministic)")
 
 
+def pp_args(parser: argparse.ArgumentParser) -> None:
+    g = parser.add_argument_group("ProgrammingPuzzles")
+    g.add_argument("--pp_num_samples", type=int, default=50,
+                   help="ProgrammingPuzzles: number of puzzles to evaluate (default: 50)")
+    g.add_argument("--pp_module", default=None,
+                   help="ProgrammingPuzzles: filter by module category "
+                        "(e.g. study.py, basic.py, IMO.py; default: all modules)")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Prompt-Based Reasoning Evaluation",
@@ -390,6 +399,7 @@ def build_parser() -> argparse.ArgumentParser:
     tot_args(parser)
     bot_args(parser)
     got_args(parser)
+    pp_args(parser)
     return parser
 
 
