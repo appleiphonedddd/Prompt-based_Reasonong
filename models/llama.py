@@ -29,15 +29,16 @@ class LlamaClient(BaseLLM):
         model = model or config["models"]["llama"]
         super().__init__(key, model)
         base_url = config["llm"]["local"]["base_url"]
-        self.client = OpenAI(api_key=self.api_key, base_url=base_url)
-    
+        self.client = OpenAI(api_key=self.api_key, base_url=base_url, timeout=60.0)
+
     def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
 
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=temperature
+                temperature=temperature,
+                max_tokens=2048
             )
 
             message_content = response.choices[0].message.content
