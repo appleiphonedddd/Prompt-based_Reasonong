@@ -36,6 +36,7 @@ from models.base import BaseLLM
 PROPOSE_PROMPT = """Let's play Game of 24. Use basic arithmetic (+, -, *, /) on \
 the given numbers to reach 24.  Each step, pick two numbers, apply one operation, \
 and write the result (e.g. "6 - 1 = 5 (left: 3 5 8)").
+Important: ONLY use the numbers listed in Input below. Do NOT introduce any other numbers.
 
 Input: {numbers}
 Possible next steps:
@@ -427,6 +428,8 @@ class ToT(BaseBaseline):
         root: ThoughtNode,
         best_node: Optional[ThoughtNode],
         question: str,
+        system_prompt: Optional[str] = None,
+        instruction: Optional[str] = None,
     ) -> str:
         """Ask the LM to write a clean final equation.
 
@@ -434,9 +437,11 @@ class ToT(BaseBaseline):
         as context.
 
         Args:
-            root:      Root node (holds the original numbers).
-            best_node: The best terminal or leaf node found by search.
-            question:  Original question string (= initial numbers).
+            root:          Root node (holds the original numbers).
+            best_node:     The best terminal or leaf node found by search.
+            question:      Original question string (= initial numbers).
+            system_prompt: Optional benchmark system prompt (enforces output format).
+            instruction:   Optional benchmark instruction (enforces number usage).
 
         Returns:
             The final equation string, or the best thought if extraction fails.
@@ -449,6 +454,17 @@ class ToT(BaseBaseline):
             numbers=question,
             steps=steps,
         )
+
+        # Prepend benchmark context so the model respects output format and
+        # number constraints (same role as system_prompt/instruction in other baselines).
+        prefix_parts = []
+        if system_prompt:
+            prefix_parts.append(system_prompt)
+        if instruction:
+            prefix_parts.append(instruction)
+        if prefix_parts:
+            prompt = "\n\n".join(prefix_parts) + "\n\n" + prompt
+
         response = self.call_llm(prompt, temperature=0.0)
         answer = response.content.strip()
 
@@ -505,7 +521,11 @@ class ToT(BaseBaseline):
             self.propose_temperature = _orig_propose_temp
 
         # ── Answer extraction ────────────────
-        final_answer = self.extract_final_answer(root, best_node, question)
+        final_answer = self.extract_final_answer(
+            root, best_node, question,
+            system_prompt=system_prompt,
+            instruction=instruction,
+        )
 
         # ── Build reasoning trace ────────────
         best_path = best_node.path_thoughts() if best_node else []
