@@ -38,7 +38,7 @@ the given numbers to reach 24.  Each step, pick two numbers, apply one operation
 and write the result (e.g. "6 - 1 = 5 (left: 3 5 8)").
 Important: ONLY use the numbers listed in Input below. Do NOT introduce any other numbers.
 
-Input: {numbers}
+Input: {state}
 Possible next steps:
 """
 
@@ -51,11 +51,14 @@ Evaluation:"""
 
 # Final answer prompt: extract a complete equation from the solved state.
 FINAL_ANSWER_PROMPT = """You are solving the Game of 24.
-The numbers {numbers} were given.  Here are the intermediate steps taken:
+The numbers {state} were given.  Here are the intermediate steps taken:
 {steps}
 Write a single valid equation using each of the original numbers exactly once \
 that equals 24.  Reply with the equation only (e.g. "(10 - 4) * (9 - 5) = 24").
 Equation:"""
+
+# Matches a Game of 24 input: exactly four space-separated positive integers.
+_GAME_OF_24_RE = re.compile(r"^\d+(?:\s+\d+){3}$")
 
 
 # ─────────────────────────────────────────────
@@ -211,7 +214,17 @@ class ToT(BaseBaseline):
         Returns:
             List of raw thought strings (one per candidate).
         """
-        prompt   = self.propose_prompt.format(numbers=node.state)
+        task_ctx = getattr(self, "_task_context", None)
+        if task_ctx:
+            prompt = (
+                task_ctx + "\n\n"
+                "Current state:\n" + node.state + "\n\n"
+                "Propose several possible next reasoning steps or partial solutions "
+                "toward solving this problem.\n"
+                "List each step on a new line. Be specific and concrete."
+            )
+        else:
+            prompt = self.propose_prompt.format(state=node.state)
         response = self.call_llm(prompt, temperature=self.propose_temperature)
         thoughts = self.parse_thoughts(response.content)
         # Return up to k candidates (pad with empty strings if fewer returned)
@@ -277,7 +290,16 @@ class ToT(BaseBaseline):
             # Terminal success: highest possible score
             return float(Value.SURE.value)
 
-        prompt = self.value_prompt.format(state=node.state)
+        task_ctx = getattr(self, "_task_context", None)
+        if task_ctx:
+            prompt = (
+                task_ctx + "\n\n"
+                "Current reasoning state:\n" + node.state + "\n\n"
+                "Is this state on track toward a valid final answer for the problem above?\n"
+                "Reply with exactly one word: sure / likely / impossible"
+            )
+        else:
+            prompt = self.value_prompt.format(state=node.state)
         scores: List[float] = []
         for _ in range(self.n_evaluate_sample):
             response = self.call_llm(prompt, temperature=self.value_temperature)
@@ -450,20 +472,31 @@ class ToT(BaseBaseline):
             return "No solution found."
 
         steps = "\n".join(best_node.path_thoughts()) or "No steps."
-        prompt = self.final_answer_prompt.format(
-            numbers=question,
-            steps=steps,
-        )
 
-        # Prepend benchmark context so the model respects output format and
-        # number constraints (same role as system_prompt/instruction in other baselines).
-        prefix_parts = []
-        if system_prompt:
-            prefix_parts.append(system_prompt)
-        if instruction:
-            prefix_parts.append(instruction)
-        if prefix_parts:
-            prompt = "\n\n".join(prefix_parts) + "\n\n" + prompt
+        # For non-Game of 24 tasks, build a generic final-answer prompt that
+        # embeds the task context directly instead of the Game of 24 template.
+        task_ctx: Optional[str] = None
+        if (system_prompt or instruction) and self.final_answer_prompt is FINAL_ANSWER_PROMPT:
+            if not _GAME_OF_24_RE.match(question.strip()):
+                task_ctx = "\n\n".join(p for p in [system_prompt, instruction] if p)
+
+        if task_ctx:
+            prompt = (
+                task_ctx + "\n\n"
+                "Original problem:\n" + question + "\n\n"
+                "Reasoning path:\n" + steps + "\n\n"
+                "Provide ONLY the final answer. No explanations or extra text."
+            )
+        else:
+            prompt = self.final_answer_prompt.format(state=question, steps=steps)
+            # Prepend benchmark context for Game of 24
+            prefix_parts = []
+            if system_prompt:
+                prefix_parts.append(system_prompt)
+            if instruction:
+                prefix_parts.append(instruction)
+            if prefix_parts:
+                prompt = "\n\n".join(prefix_parts) + "\n\n" + prompt
 
         response = self.call_llm(prompt, temperature=0.0)
         answer = response.content.strip()
@@ -507,6 +540,20 @@ class ToT(BaseBaseline):
         # Build the root node
         root = ThoughtNode(state=question.strip(), depth=0)
 
+        # When running on a non-Game of 24 task (detected by the question not
+        # being four bare integers), store the benchmark's task context so that
+        # generate_thoughts() and evaluate_state() can build task-appropriate
+        # prompts instead of the hardcoded Game of 24 ones.
+        if (system_prompt or instruction) and self.propose_prompt is PROPOSE_PROMPT:
+            if not _GAME_OF_24_RE.match(question.strip()):
+                self._task_context: Optional[str] = "\n\n".join(
+                    p for p in [system_prompt, instruction] if p
+                )
+            else:
+                self._task_context = None
+        else:
+            self._task_context = None
+
         # ── Search ──────────────────────────
         # Temporarily swap temperature so generate_thoughts picks it up,
         # then restore the original value afterwards.
@@ -519,6 +566,7 @@ class ToT(BaseBaseline):
                 best_node, search_log = self.bfs(root)
         finally:
             self.propose_temperature = _orig_propose_temp
+            self._task_context = None
 
         # ── Answer extraction ────────────────
         final_answer = self.extract_final_answer(
