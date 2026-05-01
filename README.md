@@ -43,32 +43,7 @@ The gap widens on harder tasks — multi-step math, logical deduction, creative 
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         CLI  (main.py)                           │
-│            --model  ×  --baseline  ×  --benchmark               │
-└──────────────────┬──────────────────┬───────────────────────────┘
-                   │                  │
-        ┌──────────▼──────────┐  ┌────▼──────────────────────────┐
-        │    MODEL LAYER      │  │       BASELINE LAYER           │
-        │                     │  │                                │
-        │  GPT     Gemini     │  │  Standard    Zero-Shot CoT     │
-        │  Qwen    Llama      │  │  ToT         GoT               │
-        │  DeepSeek  ...      │  │  BoT         RoT               │
-        └──────────┬──────────┘  └────┬──────────────────────────┘
-                   │                  │
-        ┌──────────▼──────────────────▼──────────┐
-        │               EVALUATOR                 │
-        │    Accuracy  ·  Token Efficiency         │
-        └─────────────────────┬───────────────────┘
-                               │
-        ┌──────────────────────▼──────────────────┐
-        │            BENCHMARK LAYER               │
-        │                                          │
-        │  Game of 24  │  MGSM  │  BBH (×27 tasks) │
-        │  SonnetWriting  │  Programming Puzzles   │
-        └──────────────────────────────────────────┘
-```
+![Logo](./img/architecture.png)
 
 ---
 
