@@ -5,14 +5,16 @@ This benchmark evaluates the ability of Large Language Models to write
 Shakespearean sonnets following strict structural and lexical constraints.
 
 Task Description:
-    Given three specific words, write a 14-line Shakespearean sonnet
-    (ABAB CDCD EFEF GG rhyme scheme) that incorporates all three words
+    Given five specific words, write a 14-line Shakespearean sonnet
+    (ABAB CDCD EFEF GG rhyme scheme) that incorporates all five words
     verbatim within the poem.
 
 Dataset:
-    20 unique prompts, each specifying three required words.
+    154 prompts derived from Shakespeare's canonical sonnets, each specifying
+    five thematically relevant words (keywords sourced from:
+    github.com/iljones00/Shakespearean-Sonnets-GPT).
     Each sonnet is evaluated on:
-    - Word inclusion: all three words present (case-insensitive, whole-word match)
+    - Word inclusion: all required words present (case-insensitive, whole-word match)
     - Structure: exactly 14 non-empty lines
     - Rhyme scheme: valid ABAB CDCD EFEF GG pattern (detected via suffix matching)
 
@@ -24,6 +26,7 @@ Scoring:
 References:
     BoT paper: https://arxiv.org/abs/2310.04687
     Meta-prompting Sonnet task: Suzgun & Kalai (2024)
+    Keyword dataset: github.com/iljones00/Shakespearean-Sonnets-GPT
 
 Author: Egor Morozov
 """
@@ -97,7 +100,7 @@ class SonnetWriting(DatasetBase):
     Constraints:
         - 14 lines total (iambic pentameter not enforced)
         - ABAB CDCD EFEF GG rhyme scheme
-        - Must include three specified words verbatim
+        - Must include five specified words verbatim
 
     Args:
         split: Dataset split (default: ``"test"``).
@@ -108,11 +111,11 @@ class SonnetWriting(DatasetBase):
 
         ds = SonnetWriting()
         ds.load_dataset()
-        print(len(ds))                          # 20
+        print(len(ds))                          # 154
 
         problem = ds.get_problem(0)
-        print(problem.question)                 # Task description + 3 words
-        print(problem.ground_truth)             # List of 3 required words
+        print(problem.question)                 # Task description + 5 words
+        print(problem.ground_truth)             # List of 5 required words
 
         sonnet_output = "Write a beautiful sonnet about..."  # from LLM
         result = ds.evaluate_answer(sonnet_output, problem.ground_truth)
@@ -137,8 +140,9 @@ class SonnetWriting(DatasetBase):
         ``self._data`` with a list of dictionaries.
 
         Each dictionary contains:
-            - id (int): unique identifier
-            - words (list[str]): three words to incorporate
+            - id (int): Shakespeare sonnet index (0–153, appears twice per sonnet)
+            - n_words (int): required word count (3 or 5)
+            - words (list[str]): required words to incorporate verbatim
 
         Raises:
             RuntimeError: If the JSON file cannot be found or parsed.
@@ -179,9 +183,9 @@ class SonnetWriting(DatasetBase):
 
         Returns:
             A Problem with:
-            - question: Task description with three required words
-            - ground_truth: List of three words to incorporate
-            - metadata: Dataset-specific information
+            - question: Task description with required words (3 or 5)
+            - ground_truth: List of required words to incorporate
+            - metadata: Dataset-specific information including n_words and sonnet_id
 
         Raises:
             RuntimeError: If dataset has not been loaded.
@@ -198,16 +202,16 @@ class SonnetWriting(DatasetBase):
         row = self._data[index]
         words = row.get("words", [])
 
-        # Format the question with the three required words
         words_str = ", ".join(f'"{w}"' for w in words)
+        n = len(words)
         question = (
             "Write a Shakespearean sonnet (ABAB CDCD EFEF GG) "
-            "using these three words verbatim:\n"
+            f"using these {n} words verbatim:\n"
             f"{words_str}\n\n"
             "Your sonnet must:\n"
             "1. Have exactly 14 lines\n"
             "2. Follow the rhyme scheme ABAB CDCD EFEF GG\n"
-            "3. Include all three words exactly as written"
+            f"3. Include all {n} words exactly as written"
         )
 
         return Problem(
@@ -216,6 +220,7 @@ class SonnetWriting(DatasetBase):
             ground_truth=words,
             metadata={
                 "id": row.get("id", index),
+                "n_words": row.get("n_words", len(words)),
                 "raw_words": words,
             },
         )
@@ -248,8 +253,8 @@ class SonnetWriting(DatasetBase):
             "required_words": ground_truth,
         }
 
-        if not isinstance(ground_truth, list) or len(ground_truth) != 3:
-            details["error"] = "ground_truth must be a list of 3 words."
+        if not isinstance(ground_truth, list) or len(ground_truth) == 0:
+            details["error"] = "ground_truth must be a non-empty list of words."
             return EvaluationResult(
                 is_correct=False,
                 score=0.0,
@@ -269,7 +274,7 @@ class SonnetWriting(DatasetBase):
             if re.search(pattern, prediction, re.IGNORECASE):
                 words_found += 1
 
-        words_score = words_found / 3.0
+        words_score = words_found / len(required_words)
         details["words_found"] = words_found
         details["words_score"] = words_score
 
