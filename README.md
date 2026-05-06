@@ -219,21 +219,3 @@ DATASET_REGISTRY["mybench"] = (MyBenchmark, lambda _: {})
 
 ---
 
-## 📚 References
-
-| Method | Citation |
-|---|---|
-| GPT-3 / Standard | Brown et al. (2020). *Language Models are Few-Shot Learners.* NeurIPS. |
-| Zero-Shot CoT | Kojima et al. (2022). *Large Language Models are Zero-Shot Reasoners.* NeurIPS. |
-| Tree-of-Thought | Yao et al. (2023). *Tree of Thoughts: Deliberate Problem Solving with LLMs.* NeurIPS. |
-| Graph-of-Thought | Besta et al. (2024). *Graph of Thoughts: Solving Elaborate Problems with LLMs.* AAAI. |
-| Buffer-of-Thought | Yang et al. (2024). *Buffer of Thoughts: Thought-Augmented Reasoning with LLMs.* NeurIPS. |
-| Reversal-of-Thought | Yuan et al. (2025). *Reversal of Thought: Enhancing LLMs with Preference-Guided Reverse Reasoning Warm-up.* ACL. |
-| BigBenchHard | Suzgun et al. (2023). *Challenging BIG-Bench Tasks and Whether CoT Can Solve Them.* ACL Findings. |
-| MGSM | Shi et al. (2023). *Language Models are Multilingual Chain-of-Thought Reasoners.* ICLR. |
-
----
-
-<div align="center">
-Built for reproducible LLM reasoning research &nbsp;·&nbsp; PRs welcome
-</div>
