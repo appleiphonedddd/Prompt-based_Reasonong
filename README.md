@@ -28,6 +28,17 @@ The gap widens on harder tasks — multi-step math, logical deduction, creative 
 
 ---
 
+## 📋 Prerequisites
+
+| Requirement | Minimum Spec |
+|---|---|
+| OS | Ubuntu 24.04.04 LTS |
+| GPU | NVIDIA A40 (CUDA 13.x) |
+| Python | 3.11 via Conda |
+| Docker | Required for local Ollama inference |
+
+---
+
 ## 🗂️ Prompting Strategies
 
 | # | Baseline | Key Idea | Reference |
@@ -53,22 +64,11 @@ The gap widens on harder tasks — multi-step math, logical deduction, creative 
 
 | Provider | Model Examples | Inference |
 |---|---|---|
-| Alibaba | `qwen2.5:3b`, `qwen2.5:14b`, `qwen3:8b` | Local via Ollama |
+| Alibaba | `qwen2.5:32b`, `qwen2.5:14b`, `qwen3:8b` | Local via Ollama |
 | Meta | `llama3.1:8b`, `llama3.1:70b`, `llama3.3:70b` | Local via Ollama |
 | OpenAI | `gpt:gpt-4o`, `gpt:gpt-4o-mini` | Cloud API |
 | Google | `gemini:gemini-2.0-flash`, `gemini:gemini-1.5-pro` | Cloud API |
 | DeepSeek | `deepseek:deepseek-chat` | Cloud API |
-
-### Baselines × Benchmarks
-
-|  | Game of 24 | MGSM | BigBenchHard | SonnetWriting | Prog. Puzzles |
-|---|:---:|:---:|:---:|:---:|:---:|
-| `standard` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `zerocot` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `rot` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `tot` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `bot` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `got` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -88,14 +88,14 @@ conda activate Prompt
 ./setup_ollama_gpu.sh
 
 # Pull a model
-docker exec -it ollama ollama run qwen2.5:3b
+docker exec -it ollama ollama run qwen2.5:32b
 
 # Remove a model
-docker exec -it ollama ollama rm qwen2.5:3b
+docker exec -it ollama ollama rm qwen2.5:32b
 
 # Run your first evaluation
 export API_KEY="ollama"
-python main.py --model qwen2.5:3b --baseline zerocot --benchmark gameof24
+python main.py --model qwen2.5:32b --baseline zerocot --benchmark gameof24
 ```
 
 ### Step 2b — Cloud Model
@@ -121,27 +121,27 @@ python main.py \
 
 **Standard — direct baseline**
 ```bash
-python main.py --model qwen2.5:3b --baseline standard --benchmark gameof24
+python main.py --model qwen2.5:32b --baseline standard --benchmark gameof24
 ```
 
 **Zero-Shot Chain-of-Thought**
 ```bash
-python main.py --model qwen2.5:3b --baseline zerocot --benchmark mgsm
+python main.py --model qwen2.5:32b --baseline zerocot --benchmark mgsm
 ```
 
 **Tree-of-Thought — breadth-first reasoning search**
 ```bash
-python main.py --model qwen2.5:3b --baseline tot --benchmark gameof24 --tot_n_generate 2 --tot_n_evaluate 1 --tot_breadth 2  --tot_max_steps  1
+python main.py --model qwen2.5:32b --baseline tot --benchmark gameof24 --tot_n_generate 2 --tot_n_evaluate 1 --tot_breadth 2  --tot_max_steps  1
 ```
 
 **Graph-of-Thought — non-linear thought graphs**
 ```bash
-python main.py --model qwen2.5:3b --baseline got --benchmark gameof24 --got_branches 3 --got_keep 1 --got_refine 0
+python main.py --model qwen2.5:32b --baseline got --benchmark gameof24 --got_branches 3 --got_keep 1 --got_refine 0
 ```
 
 **BigBenchHard — 27 task categories**
 ```bash
-python main.py --model qwen2.5:3b --baseline zerocot --benchmark bigbenchhard --bigbenchhard_task geometric_shapes
+python main.py --model qwen2.5:32b --baseline zerocot --benchmark bigbenchhard --bigbenchhard_task geometric_shapes
 ```
 
 <details>
@@ -205,17 +205,4 @@ class MyBenchmark(DatasetBase):
 # 2. Register in benchmark/__init__.py
 DATASET_REGISTRY["mybench"] = (MyBenchmark, lambda _: {})
 ```
-
----
-
-## 📋 Prerequisites
-
-| Requirement | Minimum Spec |
-|---|---|
-| OS | Ubuntu 24.04.04 LTS |
-| GPU | NVIDIA A40 (CUDA 13.x) |
-| Python | 3.11 via Conda |
-| Docker | Required for local Ollama inference |
-
----
 
