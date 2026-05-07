@@ -9,6 +9,7 @@ Available datasets:
     - SonnetWriting:       Shakespearean sonnet generation with constraints.
     - BigBenchHard:        All 27 BIG-Bench Hard reasoning tasks.
     - ProgrammingPuzzles:  Python programming puzzles with sat-function verification.
+    - HumanEval:           164 Python function completion tasks (OpenAI HumanEval).
 
 Usage::
 
@@ -26,6 +27,11 @@ Usage::
     pp = ProgrammingPuzzles(num_samples=50, module="study.py")
     pp.load_dataset()
 
+    # HumanEval example
+    he = HumanEval()
+    he.load_dataset()
+    problem = he.get_problem(0)
+
 Author: Egor Morozov
 """
 
@@ -35,6 +41,7 @@ from benchmark.MGSM.mgsm import MGSM
 from benchmark.SonnetWriting.sonnetwriting import SonnetWriting
 from benchmark.BigBenchHard.bigbenchhard import BigBenchHard
 from benchmark.ProgrammingPuzzles.programpuzzles import ProgrammingPuzzles
+from benchmark.HumanEval.humaneval import HumanEval
 
 # Registry used by main.py for dynamic instantiation.
 # Format: { key: (DatasetClass, kwargs_extractor) }
@@ -53,6 +60,7 @@ DATASET_REGISTRY: dict[str, tuple] = {
         num_samples=a.pp_num_samples,
         module=a.pp_module if hasattr(a, "pp_module") else None,
     )),
+    "humaneval":           (HumanEval,            lambda _: {}),
 }
 
 __all__ = [
@@ -64,5 +72,6 @@ __all__ = [
     "SonnetWriting",
     "BigBenchHard",
     "ProgrammingPuzzles",
+    "HumanEval",
     "DATASET_REGISTRY",
 ]
