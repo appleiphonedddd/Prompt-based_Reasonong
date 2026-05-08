@@ -13,6 +13,7 @@ Available datasets:
     - MBPP:                974 Python function generation tasks (Google MBPP).
     - APPS:                5000 competitive-programming problems (stdin/stdout + fn_name).
     - ClassEval:           100 class-level Python implementation tasks.
+    - CRUXEval:            799 code output-prediction tasks (CRUXEval-O).
 
 Usage::
 
@@ -50,6 +51,11 @@ Usage::
     ce.load_dataset()
     problem = ce.get_problem(0)
 
+    # CRUXEval example
+    crux = CRUXEval()
+    crux.load_dataset()
+    problem = crux.get_problem(0)
+
 Author: Egor Morozov
 """
 
@@ -63,6 +69,7 @@ from benchmark.HumanEval.humaneval import HumanEval
 from benchmark.MBPP.mbpp import MBPP
 from benchmark.APPS.apps import APPS
 from benchmark.ClassEval.classeval import ClassEval
+from benchmark.CRUXEval.cruxeval import CRUXEval
 
 # Registry used by main.py for dynamic instantiation.
 # Format: { key: (DatasetClass, kwargs_extractor) }
@@ -85,6 +92,7 @@ DATASET_REGISTRY: dict[str, tuple] = {
     "mbpp":                (MBPP,                 lambda _: {}),
     "apps":                (APPS,                 lambda _: {}),
     "classeval":           (ClassEval,            lambda _: {}),
+    "cruxeval":            (CRUXEval,             lambda _: {}),
 }
 
 __all__ = [
@@ -100,5 +108,6 @@ __all__ = [
     "MBPP",
     "APPS",
     "ClassEval",
+    "CRUXEval",
     "DATASET_REGISTRY",
 ]
