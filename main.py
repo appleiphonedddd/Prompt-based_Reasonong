@@ -6,7 +6,7 @@ from models.deepseek import DeepSeekClient
 from models.llama import LlamaClient
 from models.gemini import GeminiClient
 from models.qwen import QwenClient
-from baseline.CoT import ZeroShotCoTSinglePass
+from baseline.CoT import ZeroShotCoT, ZeroShotCoTSinglePass
 from baseline.RoT import RoT
 from baseline.ToT import ToT
 from baseline.BoT import BoT
@@ -39,6 +39,7 @@ MODEL_REGISTRY: dict[str, type] = {
 # To add a new baseline: insert one entry here (class, kwargs-extractor).
 BASELINE_REGISTRY: dict[str, tuple] = {
     "standard":       (Input,                  lambda _: {}),
+    "zerocot":        (ZeroShotCoT,            lambda _: {}),
     "zerocot_single": (ZeroShotCoTSinglePass,  lambda _: {}),
     "rot": (RoT, lambda a: dict(
         warmup=a.warmup,
@@ -305,8 +306,8 @@ def general_args(parser: argparse.ArgumentParser) -> None:
                         help="Model name (prefix = provider, e.g. 'gemini:...')")
     parser.add_argument("--benchmark",    default="gameof24",
                         help="Benchmark / dataset name (gameof24, mgsm, sonnetwriting, bigbenchhard, programmingpuzzles, humaneval, mbpp, apps, classeval)")
-    parser.add_argument("--baseline",     default="zerocot_single",
-                        help="Baseline: standard | zerocot_single | rot | tot | bot | got")
+    parser.add_argument("--baseline",     default="zerocot",
+                        help="Baseline: standard | zerocot | zerocot_single | rot | tot | bot | got")
     parser.add_argument("--num_runs",     type=int, default=1,
                         help="Independent experiment runs")
     parser.add_argument("--language",     default="all",
