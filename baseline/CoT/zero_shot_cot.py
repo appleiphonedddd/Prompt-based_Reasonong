@@ -184,7 +184,7 @@ class ZeroShotCoT(BaseBaseline):
             # Disable extraction for tasks where the generation IS the answer:
             # - Expression-based tasks (Game of 24): expect arithmetic expressions
             # - Creative/generative tasks (SonnetWriting): the poem is the answer
-            # - Code generation tasks (HumanEval): the function body is the answer
+            # - Code generation tasks (HumanEval, MBPP, ClassEval): code is the answer
             instruction_lower = instruction.lower() if instruction else ""
             question_lower = question.lower() if question else ""
             is_generative_task = (
@@ -197,7 +197,10 @@ class ZeroShotCoT(BaseBaseline):
                 ("write" in instruction_lower and "line" in instruction_lower) or
                 "function body" in instruction_lower or
                 "function implementation" in instruction_lower or
-                ("implement" in instruction_lower and "function" in instruction_lower)
+                ("implement" in instruction_lower and "function" in instruction_lower) or
+                ("implement" in instruction_lower and "class" in instruction_lower) or
+                "class implementation" in instruction_lower or
+                "class body" in instruction_lower
             )
             extract_answer = not is_generative_task
 

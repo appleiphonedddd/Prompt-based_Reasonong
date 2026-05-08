@@ -305,7 +305,7 @@ def general_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--model",        default="qwen2.5:14b",
                         help="Model name (prefix = provider, e.g. 'gemini:...')")
     parser.add_argument("--benchmark",    default="gameof24",
-                        help="Benchmark / dataset name (gameof24, mgsm, sonnetwriting, bigbenchhard, programmingpuzzles, humaneval, mbpp)")
+                        help="Benchmark / dataset name (gameof24, mgsm, sonnetwriting, bigbenchhard, programmingpuzzles, humaneval, mbpp, apps, classeval)")
     parser.add_argument("--baseline",     default="zerocot",
                         help="Baseline: standard | zerocot | zerocot_single | rot | tot | bot | got")
     parser.add_argument("--num_runs",     type=int, default=1,

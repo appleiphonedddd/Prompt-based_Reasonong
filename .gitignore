@@ -208,4 +208,5 @@ __marimo__/
 
 # ignore folder
 
-datasets/
+benchmark/APPS/data
+

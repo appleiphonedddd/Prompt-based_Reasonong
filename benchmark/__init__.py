@@ -11,6 +11,8 @@ Available datasets:
     - ProgrammingPuzzles:  Python programming puzzles with sat-function verification.
     - HumanEval:           164 Python function completion tasks (OpenAI HumanEval).
     - MBPP:                974 Python function generation tasks (Google MBPP).
+    - APPS:                5000 competitive-programming problems (stdin/stdout + fn_name).
+    - ClassEval:           100 class-level Python implementation tasks.
 
 Usage::
 
@@ -38,6 +40,16 @@ Usage::
     mbpp.load_dataset()
     problem = mbpp.get_problem(0)
 
+    # APPS example
+    apps = APPS()
+    apps.load_dataset()
+    problem = apps.get_problem(0)
+
+    # ClassEval example
+    ce = ClassEval()
+    ce.load_dataset()
+    problem = ce.get_problem(0)
+
 Author: Egor Morozov
 """
 
@@ -49,6 +61,8 @@ from benchmark.BigBenchHard.bigbenchhard import BigBenchHard
 from benchmark.ProgrammingPuzzles.programpuzzles import ProgrammingPuzzles
 from benchmark.HumanEval.humaneval import HumanEval
 from benchmark.MBPP.mbpp import MBPP
+from benchmark.APPS.apps import APPS
+from benchmark.ClassEval.classeval import ClassEval
 
 # Registry used by main.py for dynamic instantiation.
 # Format: { key: (DatasetClass, kwargs_extractor) }
@@ -69,6 +83,8 @@ DATASET_REGISTRY: dict[str, tuple] = {
     )),
     "humaneval":           (HumanEval,            lambda _: {}),
     "mbpp":                (MBPP,                 lambda _: {}),
+    "apps":                (APPS,                 lambda _: {}),
+    "classeval":           (ClassEval,            lambda _: {}),
 }
 
 __all__ = [
@@ -82,5 +98,7 @@ __all__ = [
     "ProgrammingPuzzles",
     "HumanEval",
     "MBPP",
+    "APPS",
+    "ClassEval",
     "DATASET_REGISTRY",
 ]
