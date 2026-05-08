@@ -184,6 +184,7 @@ class ZeroShotCoT(BaseBaseline):
             # Disable extraction for tasks where the generation IS the answer:
             # - Expression-based tasks (Game of 24): expect arithmetic expressions
             # - Creative/generative tasks (SonnetWriting): the poem is the answer
+            # - Code generation tasks (HumanEval): the function body is the answer
             instruction_lower = instruction.lower() if instruction else ""
             question_lower = question.lower() if question else ""
             is_generative_task = (
@@ -193,7 +194,10 @@ class ZeroShotCoT(BaseBaseline):
                 "sonnet" in instruction_lower or
                 "sonnet" in question_lower or
                 "poem" in instruction_lower or
-                ("write" in instruction_lower and "line" in instruction_lower)
+                ("write" in instruction_lower and "line" in instruction_lower) or
+                "function body" in instruction_lower or
+                "function implementation" in instruction_lower or
+                ("implement" in instruction_lower and "function" in instruction_lower)
             )
             extract_answer = not is_generative_task
 
@@ -287,17 +291,23 @@ class ZeroShotCoTSinglePass(BaseBaseline):
 
     def parse_response(self, response_text: str) -> tuple[str, str]:
         """Parse the response to extract reasoning and final answer.
-        
+
+        Captures everything after ``**Final Answer:**`` so that multi-line
+        answers (e.g. code blocks) are not truncated to a single line.
+
         Args:
             response_text: The full LLM response.
-            
+
         Returns:
             Tuple of (final_answer, reasoning_trace).
         """
-        # Try to find "Final Answer:" pattern
-        pattern = r"\*?\*?Final Answer:?\*?\*?\s*(.+?)(?:\n|$)"
-        match = re.search(pattern, response_text, re.IGNORECASE)
-        
+        # Capture everything after the **Final Answer:** marker (multi-line safe).
+        match = re.search(
+            r"\*?\*?Final Answer:?\*?\*?\s*(.*)",
+            response_text,
+            re.IGNORECASE | re.DOTALL,
+        )
+
         if match:
             final_answer = match.group(1).strip()
             reasoning_trace = response_text[:match.start()].strip()
