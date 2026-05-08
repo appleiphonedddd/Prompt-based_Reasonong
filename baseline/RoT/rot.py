@@ -27,6 +27,7 @@ import re
 import math
 import logging
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, List, Dict, Tuple
 
 from baseline.basebaseline import BaseBaseline, BaselineResponse
@@ -301,10 +302,15 @@ class RoT(BaseBaseline):
         self.warmup = warmup
         self.candidate_temperature = candidate_temperature
         self.instantiation_temperature = instantiation_temperature
-        self.demos = demos or "Input:1, 5, 5, 5; Output:5× (5 − 1 ÷ 5) = 24"
+        self.demos = demos or ""
         self.embedding_model = embedding_model
         self.similarity_threshold = similarity_threshold
         self.task_prompt = task_prompt
+        # Cached results of Stage 1 & 2 — these don't depend on the question,
+        # only on the demos/task, so we run them once and reuse across all questions.
+        self._cached_llm_taste: Optional[str] = None
+        self._cached_optimal_idx: int = 0
+        self._cached_pref_scores: Dict[str, float] = {}
 
     # ──────────────────────────────────────────
     # Stage 1: Reverse Reasoning Warm-up
@@ -320,12 +326,16 @@ class RoT(BaseBaseline):
         Returns:
             List of K candidate reverse-reasoned prompts.
         """
-        candidates = []
-        prompt = f"{REVERSAL_OF_THOUGHT_PROMPT}\n\n{self.demos}"
+        prompt = REVERSAL_OF_THOUGHT_PROMPT
+        if self.demos:
+            prompt = f"{prompt}\n\n{self.demos}"
 
-        for _ in range(self.warmup):
-            response = self.call_llm(prompt, temperature=self.candidate_temperature)
-            candidates.append(response.content.strip())
+        with ThreadPoolExecutor(max_workers=self.warmup) as executor:
+            futures = [
+                executor.submit(self.call_llm, prompt, self.candidate_temperature)
+                for _ in range(self.warmup)
+            ]
+            candidates = [f.result().content.strip() for f in futures]
 
         return candidates
 
@@ -385,10 +395,16 @@ class RoT(BaseBaseline):
         k = len(candidates)
         p_pre: Dict[Tuple[int, int], float] = {}
 
-        # Step 1: Direct pairwise comparisons
-        for i in range(k - 1):
-            for j in range(i + 1, k):
-                score = self.evaluate_preference(candidates[i], candidates[j])
+        # Step 1: Direct pairwise comparisons (all pairs in parallel)
+        pairs = [(i, j) for i in range(k - 1) for j in range(i + 1, k)]
+
+        def _compare(i: int, j: int) -> Tuple[int, int, float]:
+            return i, j, self.evaluate_preference(candidates[i], candidates[j])
+
+        with ThreadPoolExecutor(max_workers=len(pairs) or 1) as executor:
+            futures = [executor.submit(_compare, i, j) for i, j in pairs]
+            for future in as_completed(futures):
+                i, j, score = future.result()
                 p_pre[(i, j)] = score
                 p_pre[(j, i)] = 1.0 - score
 
@@ -668,20 +684,34 @@ class RoT(BaseBaseline):
         # Resolve task_prompt: per-call override > instance-level
         effective_task_prompt = task_prompt or self.task_prompt
 
-        # ── Stage 1: Reverse Reasoning Warm-up ──
-        candidates = self.generate_candidates()
-        intermediate_steps.append(
-            f"[Stage 1: Reverse Reasoning] Generated {len(candidates)} candidates"
-        )
-        for idx, cand in enumerate(candidates):
-            intermediate_steps.append(f"[Candidate {idx + 1}]\n{cand}")
+        # ── Stage 1 & 2: run once, then reuse cached llm_taste ──
+        if self._cached_llm_taste is None:
+            candidates = self.generate_candidates()
+            intermediate_steps.append(
+                f"[Stage 1: Reverse Reasoning] Generated {len(candidates)} candidates"
+            )
+            for idx, cand in enumerate(candidates):
+                intermediate_steps.append(f"[Candidate {idx + 1}]\n{cand}")
 
-        # ── Stage 2: Pairwise Preference Selection ──
-        p_pre = self.build_preference_matrix(candidates)
-        optimal_idx, llm_taste = self.select_optimal(candidates, p_pre)
-        intermediate_steps.append(
-            f"[Stage 2: Preference Selection] Selected candidate {optimal_idx + 1}"
-        )
+            p_pre = self.build_preference_matrix(candidates)
+            optimal_idx, llm_taste = self.select_optimal(candidates, p_pre)
+
+            k = len(candidates)
+            self._cached_pref_scores = {
+                f"candidate_{i + 1}": round(
+                    sum(p_pre.get((i, j), 0.0) for j in range(k) if j != i) / max(k - 1, 1), 4
+                )
+                for i in range(k)
+            }
+            self._cached_optimal_idx = optimal_idx
+            self._cached_llm_taste = llm_taste
+            intermediate_steps.append(
+                f"[Stage 2: Preference Selection] Selected candidate {optimal_idx + 1}"
+            )
+        else:
+            llm_taste = self._cached_llm_taste
+            optimal_idx = self._cached_optimal_idx
+            intermediate_steps.append("[Stage 1 & 2: Skipped] Using cached llm_taste")
 
         # ── Stage 3: Cognitive Preference Manager ──
         cpm_boundary = None
@@ -733,16 +763,6 @@ class RoT(BaseBaseline):
             )
         reasoning_trace += f"[Thinking]\n{thinking}"
 
-        # Compute preference score summary
-        k = len(candidates)
-        pref_scores = {}
-        for i in range(k):
-            if k > 1:
-                avg = sum(p_pre.get((i, j), 0.0) for j in range(k) if j != i) / (k - 1)
-            else:
-                avg = 1.0
-            pref_scores[f"candidate_{i + 1}"] = round(avg, 4)
-
         return self.create_response(
             final_answer=final_answer,
             reasoning_trace=reasoning_trace,
@@ -753,7 +773,7 @@ class RoT(BaseBaseline):
                 "candidate_temperature": self.candidate_temperature,
                 "instantiation_temperature": inst_temp,
                 "optimal_candidate_index": optimal_idx,
-                "preference_scores": pref_scores,
+                "preference_scores": self._cached_pref_scores,
                 "demos": self.demos,
                 "cpm_enabled": self.cpm_enabled,
                 "cpm_boundary": cpm_boundary,

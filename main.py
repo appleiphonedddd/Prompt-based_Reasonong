@@ -103,7 +103,7 @@ class Evaluator:
     def build_client(self):
         return MODEL_REGISTRY[self.model_family](model=self.args.model)
 
-    def build_baseline(self, client):
+    def build_baseline(self, client, dataset=None):
         cls, extract_kwargs = BASELINE_REGISTRY[self.args.baseline.lower()]
         return cls(llm=client, **extract_kwargs(self.args))
 
@@ -117,7 +117,7 @@ class Evaluator:
     def run_once(self, run_index: int, dataset, efficiency: Efficiency) -> float:
         print(f"\n[Run {run_index}/{self.args.num_runs}]")
         client   = self.build_client()
-        baseline = self.build_baseline(client)
+        baseline = self.build_baseline(client, dataset)
         accuracy = Accuracy()
 
         n = len(dataset)

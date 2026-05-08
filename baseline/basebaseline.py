@@ -12,6 +12,7 @@ foundation for integrating different prompt engineering techniques.
 Author: Egor Morozov
 """
 
+import threading
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
@@ -91,6 +92,7 @@ class BaseBaseline(ABC):
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         self.num_llm_calls = 0
+        self._counter_lock = threading.Lock()
 
     def reset_counters(self) -> None:
         """Reset token and call counters before a new run."""
@@ -109,9 +111,10 @@ class BaseBaseline(ABC):
             LLMResponse containing the generation result.
         """
         response = self.llm.generate(prompt, temperature=temperature)
-        self.total_input_tokens += response.input_tokens
-        self.total_output_tokens += response.output_tokens
-        self.num_llm_calls += 1
+        with self._counter_lock:
+            self.total_input_tokens += response.input_tokens
+            self.total_output_tokens += response.output_tokens
+            self.num_llm_calls += 1
         return response
 
     def create_response(
