@@ -39,14 +39,32 @@ Reference:
 from __future__ import annotations
 
 import json
-import math
 import os
 import re
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
 from baseline.basebaseline import BaseBaseline, BaselineResponse
 from models.base import BaseLLM
+
+# Lazy-loaded singleton — model is downloaded once and reused across all MetaBuffer instances.
+_EMBED_MODEL: Optional[SentenceTransformer] = None
+
+def _get_embed_model() -> SentenceTransformer:
+    global _EMBED_MODEL
+    if _EMBED_MODEL is None:
+        _EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+    return _EMBED_MODEL
+
+def _embed(text: str) -> np.ndarray:
+    return _get_embed_model().encode(text, normalize_embeddings=True)
+
+def _cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
+    # Vectors are already L2-normalised, so dot product == cosine similarity.
+    return float(np.dot(a, b))
 
 
 THOUGHT_CATEGORIES = [
@@ -56,6 +74,173 @@ THOUGHT_CATEGORIES = [
     "Mathematical Reasoning",
     "Code Programming",
     "Application Scheduling",
+]
+
+# Seed templates from BoT paper Appendix B.1 — used when meta-buffer is empty.
+SEED_TEMPLATES: list = [
+    {
+        "index": 0,
+        "category": "Text Comprehension",
+        "description": (
+            "Parse a structured data table with named attributes, integrate "
+            "natural-language updates, and answer attribute-based lookup or "
+            "comparison questions using logical reasoning."
+        ),
+        "template": (
+            "Step 1: Parse the initial table, extracting header names and each "
+            "entry's attributes into a structured format (e.g., list of dicts).\n"
+            "Step 2: Read and integrate any additional natural-language information "
+            "that updates or adds rows, keeping the data consistent.\n"
+            "Step 3: Identify the target attribute (e.g., oldest, heaviest) and its "
+            "corresponding column.\n"
+            "Step 4: Apply logical comparison across all entries to find the answer "
+            "(e.g., maximum age for the oldest entry).\n"
+            "Step 5: Select the option that matches the result of the comparison."
+        ),
+    },
+    {
+        "index": 1,
+        "category": "Creative Language Generation",
+        "description": (
+            "Write a 14-line English sonnet following the ABAB CDCD EFEF GG rhyme "
+            "scheme in iambic pentameter, incorporating given words verbatim."
+        ),
+        "template": (
+            "Step 1: Identify the words that must appear verbatim in the sonnet.\n"
+            "Step 2: Map the rhyme scheme ABAB CDCD EFEF GG and brainstorm end-words "
+            "for each position.\n"
+            "Step 3: Develop a theme that naturally incorporates the required words.\n"
+            "Step 4: Draft the first quatrain (lines 1-4) following ABAB, placing at "
+            "least one required word.\n"
+            "Step 5: Continue with the second quatrain CDCD (lines 5-8) and third "
+            "quatrain EFEF (lines 9-12), weaving in remaining required words.\n"
+            "Step 6: Write the closing couplet GG (lines 13-14).\n"
+            "Step 7: Review for coherence, metre, rhyme adherence, and verbatim "
+            "inclusion of all required words."
+        ),
+    },
+    {
+        "index": 2,
+        "category": "Common Sense Reasoning",
+        "description": (
+            "Infer or calculate a calendar date by reasoning about month lengths, "
+            "leap years, and arithmetic offsets from a given reference date or event."
+        ),
+        "template": (
+            "Step 1: Identify the reference date's year, month, and day.\n"
+            "Step 2: Apply the required date offset (days/months/years) using standard "
+            "calendar rules.\n"
+            "Step 3: Handle month-end rollovers — when a day exceeds the month's "
+            "length, carry over to the next month.\n"
+            "Step 4: Handle year-end rollover — December 31 + 1 day = January 1 of "
+            "the next year.\n"
+            "Step 5: Account for leap years when February is involved "
+            "(leap year: divisible by 4, except centuries unless divisible by 400).\n"
+            "Step 6: Return the final date in the requested format."
+        ),
+    },
+    {
+        "index": 3,
+        "category": "Mathematical Reasoning",
+        "description": (
+            "Solve a quadratic equation ax²+bx+c=0 by computing the discriminant "
+            "and applying the quadratic formula, handling real and complex roots."
+        ),
+        "template": (
+            "Step 1: Identify coefficients a, b, c from the equation ax²+bx+c=0.\n"
+            "Step 2: Compute the discriminant D = b² - 4ac.\n"
+            "Step 3: Determine the nature of the roots:\n"
+            "  - D > 0: two distinct real roots.\n"
+            "  - D = 0: one repeated real root.\n"
+            "  - D < 0: two complex conjugate roots.\n"
+            "Step 4: Compute the roots:\n"
+            "  - D >= 0: x = (-b ± sqrt(D)) / (2a).\n"
+            "  - D < 0:  x = -b/(2a) ± sqrt(-D)/(2a) * i.\n"
+            "Step 5: Verify by substituting roots back into the original equation."
+        ),
+    },
+    {
+        "index": 4,
+        "category": "Code Programming",
+        "description": (
+            "Find a sequence of arithmetic operations on a given list of numbers "
+            "that evaluates to a target value, using exhaustive permutation search."
+        ),
+        "template": (
+            "from itertools import permutations, product\n\n"
+            "def perform_operation(a, b, op):\n"
+            "    if op == '+': return a + b\n"
+            "    if op == '-': return a - b\n"
+            "    if op == '*': return a * b\n"
+            "    if op == '/' and b != 0: return a / b\n"
+            "    raise ValueError\n\n"
+            "def evaluate_sequence(seq, ops):\n"
+            "    result = seq[0]\n"
+            "    for i, op in enumerate(ops):\n"
+            "        result = perform_operation(result, seq[i + 1], op)\n"
+            "    return result\n\n"
+            "def find_solution(input_elements, target_result):\n"
+            "    ops = ['+', '-', '*', '/']\n"
+            "    for seq in permutations(input_elements):\n"
+            "        for op_combo in product(ops, repeat=len(seq)-1):\n"
+            "            try:\n"
+            "                if abs(evaluate_sequence(seq, op_combo) - target_result) < 1e-9:\n"
+            "                    return seq, op_combo\n"
+            "            except (ValueError, ZeroDivisionError):\n"
+            "                continue\n"
+            "    return None"
+        ),
+    },
+    {
+        "index": 5,
+        "category": "Application Scheduling",
+        "description": (
+            "Apply a sequence of chess moves given in SAN notation to a board and "
+            "find the single legal move that delivers checkmate."
+        ),
+        "template": (
+            "import chess\n\n"
+            "def find_checkmate_move(moves_san):\n"
+            "    board = chess.Board()\n"
+            "    for move_san in moves_san:\n"
+            "        parts = move_san.split('. ')\n"
+            "        if len(parts) > 1:\n"
+            "            move_san = parts[1].strip()\n"
+            "        if move_san:\n"
+            "            board.push(board.parse_san(move_san))\n"
+            "    for move in board.legal_moves:\n"
+            "        board_copy = board.copy()\n"
+            "        board_copy.push(move)\n"
+            "        if board_copy.is_checkmate():\n"
+            "            return board.san(move)\n"
+            "    return None"
+        ),
+    },
+    {
+        "index": 6,
+        "category": "Code Programming",
+        "description": (
+            "Predict the output of a Python function by tracing its execution "
+            "step by step given specific input values, tracking variable states "
+            "through each line of code."
+        ),
+        "template": (
+            "Step 1: Read the function signature and identify all parameters. "
+            "Bind each parameter to the provided input value.\n"
+            "Step 2: Execute the function body line by line, maintaining a variable "
+            "state table that records the current value of every variable after "
+            "each assignment or mutation.\n"
+            "Step 3: For control flow (if/else, for, while), evaluate the condition "
+            "with the current variable values and follow only the branch that is taken.\n"
+            "Step 4: For nested function calls or built-in operations, resolve them "
+            "using their standard Python semantics (e.g., list.append mutates in place "
+            "and returns None; sorted() returns a new list).\n"
+            "Step 5: When a return statement is reached, record the returned value as "
+            "the function output.\n"
+            "Step 6: State the final output clearly, paying attention to the exact "
+            "type and structure (int, str, list, tuple, None, etc.)."
+        ),
+    },
 ]
 
 
@@ -74,22 +259,6 @@ class ThoughtTemplate:
         return cls(**d)
 
 
-def tokenise(text: str) -> Dict[str, int]:
-    counts: Dict[str, int] = {}
-    for tok in re.findall(r"[a-z]+", text.lower()):
-        counts[tok] = counts.get(tok, 0) + 1
-    return counts
-
-
-def cosine_similarity(a: Dict[str, int], b: Dict[str, int]) -> float:
-    shared = set(a) & set(b)
-    dot = sum(a[k] * b[k] for k in shared)
-    norm_a = math.sqrt(sum(v * v for v in a.values()))
-    norm_b = math.sqrt(sum(v * v for v in b.values()))
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return dot / (norm_a * norm_b)
-
 
 class MetaBuffer:
     def __init__(
@@ -98,11 +267,13 @@ class MetaBuffer:
         init_templates: Optional[List[ThoughtTemplate]] = None,
     ) -> None:
         self.buffer: List[ThoughtTemplate] = []
+        self._embeddings: List[np.ndarray] = []  # parallel to self.buffer
         self.buffer_path = buffer_path
         if buffer_path and os.path.isfile(buffer_path):
             self.load(buffer_path)
         elif init_templates:
             self.buffer = list(init_templates)
+            self._embeddings = [_embed(t.description) for t in self.buffer]
 
     def load(self, path: str) -> None:
         with open(path, "r", encoding="utf-8") as fh:
@@ -111,6 +282,7 @@ class MetaBuffer:
             return  # FIX-F: empty file handled gracefully
         raw: List[Dict[str, Any]] = json.loads(content)
         self.buffer = [ThoughtTemplate.from_dict(d) for d in raw]
+        self._embeddings = [_embed(t.description) for t in self.buffer]
 
     def save(self) -> None:
         if self.buffer_path:
@@ -124,30 +296,22 @@ class MetaBuffer:
     def retrieve(self, distilled_info: str, threshold: float = 0.6) -> Optional[ThoughtTemplate]:
         if not self.buffer:
             return None
-        query_bow = tokenise(distilled_info)
-        best_score = -1.0
-        best_tmpl: Optional[ThoughtTemplate] = None
-        for tmpl in self.buffer:
-            score = cosine_similarity(query_bow, tokenise(tmpl.description))
-            if score > best_score:
-                best_score = score
-                best_tmpl = tmpl
-        return best_tmpl if best_score >= threshold else None
+        query_emb = _embed(distilled_info)
+        scores = [_cosine_sim(query_emb, e) for e in self._embeddings]
+        best_idx = int(np.argmax(scores))
+        return self.buffer[best_idx] if scores[best_idx] >= threshold else None
 
     def add(self, template: ThoughtTemplate, threshold: float = 0.6) -> bool:
-        if not self.buffer:
-            template.index = 0
-            self.buffer.append(template)
-            self.save()
-            return True
-        new_bow = tokenise(template.description)
-        max_sim = max(cosine_similarity(new_bow, tokenise(t.description)) for t in self.buffer)
-        if max_sim < threshold:
-            template.index = len(self.buffer)
-            self.buffer.append(template)
-            self.save()
-            return True
-        return False
+        new_emb = _embed(template.description)
+        if self.buffer:
+            max_sim = max(_cosine_sim(new_emb, e) for e in self._embeddings)
+            if max_sim >= threshold:
+                return False
+        template.index = len(self.buffer)
+        self.buffer.append(template)
+        self._embeddings.append(new_emb)
+        self.save()
+        return True
 
     def all_templates(self) -> List[ThoughtTemplate]:
         return list(self.buffer)
@@ -311,8 +475,12 @@ class BoT(BaseBaseline):
         self.distill_temperature = distill_temperature
         self.instantiation_temperature = instantiation_temperature
         self.update_buffer = update_buffer
+        # Fall back to paper's seed templates when the buffer would otherwise be empty.
+        effective_init = init_templates
+        if effective_init is None and not (buffer_path and os.path.isfile(buffer_path)):
+            effective_init = [ThoughtTemplate.from_dict(d) for d in SEED_TEMPLATES]
         # Public attributes — no @property aliases needed (FIX-E)
-        self.meta_buffer = MetaBuffer(buffer_path=buffer_path, init_templates=init_templates)
+        self.meta_buffer = MetaBuffer(buffer_path=buffer_path, init_templates=effective_init)
         self.buffer_manager = BufferManager(
             meta_buffer=self.meta_buffer,
             llm=llm,
@@ -333,16 +501,21 @@ class BoT(BaseBaseline):
 
     # ── Stage 3 ───────────────────────────────────────────────────────────────
 
-    def instantiate_with_template(self, distilled_info: str, template: ThoughtTemplate) -> str:
+    def instantiate_with_template(
+        self, distilled_info: str, template: ThoughtTemplate, system_prompt: Optional[str] = None
+    ) -> str:
+        role_line = f"[Role]\n{system_prompt}\n\n" if system_prompt else ""
         prompt = (
             f"{INSTANTIATION_SYSTEM}\n\n"
+            f"{role_line}"
             f"[Distilled Problem]\n{distilled_info}\n\n"
             f"[Thought Template — {template.category}]\n{template.template}"
         )
         return self.call_llm(prompt, temperature=self.instantiation_temperature).content.strip()
 
-    def instantiate_new_task(self, distilled_info: str) -> str:
-        prompt = f"{NEW_TASK_SYSTEM}\n\n[Distilled Problem]\n{distilled_info}"
+    def instantiate_new_task(self, distilled_info: str, system_prompt: Optional[str] = None) -> str:
+        role_line = f"[Role]\n{system_prompt}\n\n" if system_prompt else ""
+        prompt = f"{NEW_TASK_SYSTEM}\n\n{role_line}[Distilled Problem]\n{distilled_info}"
         return self.call_llm(prompt, temperature=self.instantiation_temperature).content.strip()
 
     # ── Answer extraction ─────────────────────────────────────────────────────
@@ -369,7 +542,9 @@ class BoT(BaseBaseline):
         self.buffer_manager.reset_counters()
         intermediate_steps: List[str] = []
 
-        distilled_info = self.distil_problem(question, temperature=temperature)
+        # Combine instruction with the raw question so the distiller has full context.
+        full_question = f"{instruction}\n\n{question}" if instruction else question
+        distilled_info = self.distil_problem(full_question, temperature=temperature)
         intermediate_steps.append(f"[Stage 1: Problem Distiller]\n{distilled_info}")
 
         template = self.retrieve_template(distilled_info)
@@ -385,9 +560,9 @@ class BoT(BaseBaseline):
             )
 
         raw_solution = (
-            self.instantiate_with_template(distilled_info, template)
+            self.instantiate_with_template(distilled_info, template, system_prompt=system_prompt)
             if template is not None
-            else self.instantiate_new_task(distilled_info)
+            else self.instantiate_new_task(distilled_info, system_prompt=system_prompt)
         )
         intermediate_steps.append(f"[Stage 3: Instantiated Reasoning]\n{raw_solution}")
         final_answer = self.extract_answer(raw_solution)
