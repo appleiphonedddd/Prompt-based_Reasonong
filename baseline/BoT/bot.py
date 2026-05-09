@@ -76,169 +76,219 @@ THOUGHT_CATEGORIES = [
     "Application Scheduling",
 ]
 
-# Seed templates from BoT paper Appendix B.1 — used when meta-buffer is empty.
+# Seed templates from BoT paper Appendix B.1 — verbatim from the paper.
+# Each entry has three sections matching the paper exactly:
+#   description          = Task Description  (used for embedding retrieval)
+#   solution_description = Solution Description
+#   template             = Thought Template
 SEED_TEMPLATES: list = [
     {
         "index": 0,
         "category": "Text Comprehension",
         "description": (
-            "Parse a structured data table with named attributes, integrate "
-            "natural-language updates, and answer attribute-based lookup or "
-            "comparison questions using logical reasoning."
+            "The task involves analyzing a table with various attributes of penguins, "
+            "such as name, age, height, and weight, and answering questions about these "
+            "attributes. The table may be updated with new entries, and additional "
+            "context or comparisons may be provided in natural language."
+        ),
+        "solution_description": (
+            "To accurately answer questions about the penguins' attributes, one must "
+            "be able to interpret the data presented in tabular form, understand any "
+            "additional information provided in natural language, and apply logical "
+            "reasoning to identify the correct attribute based on the question asked."
         ),
         "template": (
-            "Step 1: Parse the initial table, extracting header names and each "
-            "entry's attributes into a structured format (e.g., list of dicts).\n"
-            "Step 2: Read and integrate any additional natural-language information "
-            "that updates or adds rows, keeping the data consistent.\n"
-            "Step 3: Identify the target attribute (e.g., oldest, heaviest) and its "
-            "corresponding column.\n"
-            "Step 4: Apply logical comparison across all entries to find the answer "
-            "(e.g., maximum age for the oldest entry).\n"
-            "Step 5: Select the option that matches the result of the comparison."
+            "Step 1: Parse the initial table, extracting the header information and "
+            "each penguin's attributes into a structured format (e.g., a list of "
+            "dictionaries).\n"
+            "Step 2: Read and integrate any additional natural language information "
+            "that updates or adds to the table, ensuring the data remains consistent.\n"
+            "Step 3: Identify the attribute in question (e.g., oldest penguin, heaviest "
+            "penguin) and the corresponding column in the table.\n"
+            "Step 4: Apply logical reasoning to compare the relevant attribute across "
+            "all entries to find the correct answer (e.g., the highest age for the "
+            "oldest penguin).\n"
+            "Step 5: Select the answer from the provided options that matches the "
+            "result of the logical comparison."
         ),
     },
     {
         "index": 1,
         "category": "Creative Language Generation",
         "description": (
-            "Write a 14-line English sonnet following the ABAB CDCD EFEF GG rhyme "
-            "scheme in iambic pentameter, incorporating given words verbatim."
+            "The task is to generate a sonnet that adheres to the traditional English "
+            "sonnet rhyme scheme of \"ABAB CDCD EFEF GG\" and includes three specific "
+            "words verbatim in the text."
+        ),
+        "solution_description": (
+            "Writing a sonnet involves crafting 14 lines of poetry that follow a "
+            "specific rhyme pattern. The lines are typically in iambic pentameter, "
+            "though flexibility in rhythm can be allowed for creative reasons. The "
+            "given rhyme scheme dictates the end sounds of each line, ensuring a "
+            "structured poetic form. Incorporating the three provided words verbatim "
+            "requires strategic placement within the lines to maintain the poem's "
+            "coherence and thematic unity."
         ),
         "template": (
-            "Step 1: Identify the words that must appear verbatim in the sonnet.\n"
-            "Step 2: Map the rhyme scheme ABAB CDCD EFEF GG and brainstorm end-words "
-            "for each position.\n"
-            "Step 3: Develop a theme that naturally incorporates the required words.\n"
-            "Step 4: Draft the first quatrain (lines 1-4) following ABAB, placing at "
-            "least one required word.\n"
-            "Step 5: Continue with the second quatrain CDCD (lines 5-8) and third "
-            "quatrain EFEF (lines 9-12), weaving in remaining required words.\n"
-            "Step 6: Write the closing couplet GG (lines 13-14).\n"
-            "Step 7: Review for coherence, metre, rhyme adherence, and verbatim "
-            "inclusion of all required words."
+            "Step 1: Identify the three words that must be included in the sonnet.\n"
+            "Step 2: Understand the rhyme scheme \"ABAB CDCD EFEF GG\" and prepare a "
+            "list of rhyming words that could be used.\n"
+            "Step 3: Develop a theme or story for the sonnet that can naturally "
+            "incorporate the three provided words.\n"
+            "Step 4: Begin drafting the sonnet by writing the first quatrain (four "
+            "lines) following the \"ABAB\" rhyme scheme, ensuring one or more of the "
+            "provided words are included.\n"
+            "Step 5: Continue with the second quatrain \"CDCD,\" the third quatrain "
+            "\"EFEF,\" and finally the closing couplet \"GG,\" each time incorporating "
+            "the provided words as needed.\n"
+            "Step 6: Review the sonnet for coherence, flow, and adherence to the "
+            "rhyme scheme, making adjustments as necessary."
         ),
     },
     {
         "index": 2,
         "category": "Common Sense Reasoning",
         "description": (
-            "Infer or calculate a calendar date by reasoning about month lengths, "
-            "leap years, and arithmetic offsets from a given reference date or event."
+            "Given a specific date and an event, such as a holiday or historical "
+            "event, determine the following date."
+        ),
+        "solution_description": (
+            "To determine the next date, we need to consider the structure of the "
+            "calendar, the number of days in each month, and whether it's a leap year. "
+            "Typically, the number of days in a month is fixed, except February may "
+            "vary due to leap years. The next day in a year is usually the date "
+            "increased by one day unless it's the end of the month, then the next day "
+            "will be the first day of the following month. For the end of the year, "
+            "the next day will be January 1st of the following year."
         ),
         "template": (
-            "Step 1: Identify the reference date's year, month, and day.\n"
-            "Step 2: Apply the required date offset (days/months/years) using standard "
-            "calendar rules.\n"
-            "Step 3: Handle month-end rollovers — when a day exceeds the month's "
-            "length, carry over to the next month.\n"
-            "Step 4: Handle year-end rollover — December 31 + 1 day = January 1 of "
-            "the next year.\n"
-            "Step 5: Account for leap years when February is involved "
-            "(leap year: divisible by 4, except centuries unless divisible by 400).\n"
-            "Step 6: Return the final date in the requested format."
+            "Step 1: Identify the given date's month and day number.\n"
+            "Step 2: Check if it's the end of the month; if so, confirm the start "
+            "date of the next month.\n"
+            "Step 3: If it's not the end of the month, simply add one to the day "
+            "number.\n"
+            "Step 4: Pay special attention to the end of the year, ensuring the year "
+            "increments."
         ),
     },
     {
         "index": 3,
-        "category": "Mathematical Reasoning",
+        "category": "Code Programming",
         "description": (
-            "Solve a quadratic equation ax²+bx+c=0 by computing the discriminant "
-            "and applying the quadratic formula, handling real and complex roots."
+            "When given a list of numbers, try to utilize 4 basic mathematical "
+            "operations (+-*/) to get a target number."
         ),
+        "solution_description": "",
         "template": (
-            "Step 1: Identify coefficients a, b, c from the equation ax²+bx+c=0.\n"
-            "Step 2: Compute the discriminant D = b² - 4ac.\n"
-            "Step 3: Determine the nature of the roots:\n"
-            "  - D > 0: two distinct real roots.\n"
-            "  - D = 0: one repeated real root.\n"
-            "  - D < 0: two complex conjugate roots.\n"
-            "Step 4: Compute the roots:\n"
-            "  - D >= 0: x = (-b ± sqrt(D)) / (2a).\n"
-            "  - D < 0:  x = -b/(2a) ± sqrt(-D)/(2a) * i.\n"
-            "Step 5: Verify by substituting roots back into the original equation."
+            "from itertools import permutations, product\n\n"
+            "def perform_operation(a, b, operation):\n"
+            "    # Define the operation logic (e.g., addition, subtraction, etc.).\n"
+            "    pass\n\n"
+            "def evaluate_sequence(sequence, operations):\n"
+            "    # Apply operations to the sequence and check if the result\n"
+            "    # meets the criteria.\n"
+            "    pass\n\n"
+            "def generate_combinations(elements, operations):\n"
+            "    # Generate all possible combinations of elements and operations.\n"
+            "    pass\n\n"
+            "def format_solution(sequence, operations):\n"
+            "    # Format the sequence and operations into a human-readable string.\n"
+            "    pass\n\n"
+            "def find_solution(input_elements, target_result):\n"
+            "    # Data Input Handling\n"
+            "    # Validate and preprocess input data if necessary.\n\n"
+            "    # Core Algorithm Logic\n"
+            "    for sequence in permutations(input_elements):\n"
+            "        for operation_combination in generate_combinations(\n"
+            "                sequence, operations):\n"
+            "            try:\n"
+            "                if evaluate_sequence(sequence,\n"
+            "                        operation_combination) == target_result:\n"
+            "                    # Data Output Formatting\n"
+            "                    return format_solution(sequence,\n"
+            "                            operation_combination)\n"
+            "            except Exception as e:\n"
+            "                # Error Handling\n"
+            "                # Handle specific exceptions that may occur\n"
+            "                # during evaluation.\n"
+            "                continue\n\n"
+            "    # If no solution is found after all iterations, return a\n"
+            "    # default message.\n"
+            "    # return No solution found message\n"
+            "    return\n\n"
+            "# Example usage:\n"
+            "input_elements = [1, 7, 10, 3]\n"
+            "target_result = 24\n"
+            "print(find_solution(input_elements, target_result))"
         ),
     },
     {
         "index": 4,
-        "category": "Code Programming",
+        "category": "Application Scheduling",
         "description": (
-            "Find a sequence of arithmetic operations on a given list of numbers "
-            "that evaluates to a target value, using exhaustive permutation search."
+            "Given some Chess moves in SAN, update the chess board state."
         ),
+        "solution_description": "",
         "template": (
-            "from itertools import permutations, product\n\n"
-            "def perform_operation(a, b, op):\n"
-            "    if op == '+': return a + b\n"
-            "    if op == '-': return a - b\n"
-            "    if op == '*': return a * b\n"
-            "    if op == '/' and b != 0: return a / b\n"
-            "    raise ValueError\n\n"
-            "def evaluate_sequence(seq, ops):\n"
-            "    result = seq[0]\n"
-            "    for i, op in enumerate(ops):\n"
-            "        result = perform_operation(result, seq[i + 1], op)\n"
-            "    return result\n\n"
-            "def find_solution(input_elements, target_result):\n"
-            "    ops = ['+', '-', '*', '/']\n"
-            "    for seq in permutations(input_elements):\n"
-            "        for op_combo in product(ops, repeat=len(seq)-1):\n"
-            "            try:\n"
-            "                if abs(evaluate_sequence(seq, op_combo) - target_result) < 1e-9:\n"
-            "                    return seq, op_combo\n"
-            "            except (ValueError, ZeroDivisionError):\n"
-            "                continue\n"
-            "    return None"
+            "import chess\n\n"
+            "def find_checkmate_move(moves_san):\n"
+            "    # Initialize a new chess board\n"
+            "    board = chess.Board()\n\n"
+            "    # Apply the moves to the board\n"
+            "    for move_san in moves_san:\n"
+            "        # Remove move numbers and periods (e.g., \"1.\" or \"2.\")\n"
+            "        if len(move_san.split('. ')) > 1:\n"
+            "            move_san = move_san.split('. ')[1]\n"
+            "        # Skip empty strings resulting from the removal\n"
+            "        if move_san:\n"
+            "            # Apply each move in SAN format to the board\n"
+            "            move = board.parse_san(move_san)\n"
+            "            board.push(move)\n\n"
+            "    # Generate all possible legal moves from the current position\n"
+            "    for move in board.legal_moves:\n"
+            "        # Make the move on a copy of the board to test the result\n"
+            "        board_copy = board.copy()\n"
+            "        board_copy.push(move)\n\n"
+            "        # Check if the move results in a checkmate\n"
+            "        if board_copy.is_checkmate():\n"
+            "            # Return the move that results in checkmate in SAN format\n"
+            "            return board.san(move)\n\n"
+            "    # return No solution found message\n"
+            "    return\n\n"
+            "#Example usage:\n"
+            "input = '......'\n"
+            "# Check input format and transform the input into legal format\n"
+            "# Remove move numbers and periods (e.g., \"1.\" or \"2.\")\n"
+            "checkmate_move = find_checkmate_move(moves_san)\n"
+            "print(checkmate_move)"
         ),
     },
     {
         "index": 5,
-        "category": "Application Scheduling",
+        "category": "Mathematical Reasoning",
         "description": (
-            "Apply a sequence of chess moves given in SAN notation to a board and "
-            "find the single legal move that delivers checkmate."
+            "Solve a quadratic equation of the form ax^2 + bx + c = 0 considering "
+            "any situations."
+        ),
+        "solution_description": (
+            "To solve any quadratic equation of the form ax^2 + bx + c = 0, we can "
+            "follow a general approach based on the method described. Here is the "
+            "structured template for solving such equations:"
         ),
         "template": (
-            "import chess\n\n"
-            "def find_checkmate_move(moves_san):\n"
-            "    board = chess.Board()\n"
-            "    for move_san in moves_san:\n"
-            "        parts = move_san.split('. ')\n"
-            "        if len(parts) > 1:\n"
-            "            move_san = parts[1].strip()\n"
-            "        if move_san:\n"
-            "            board.push(board.parse_san(move_san))\n"
-            "    for move in board.legal_moves:\n"
-            "        board_copy = board.copy()\n"
-            "        board_copy.push(move)\n"
-            "        if board_copy.is_checkmate():\n"
-            "            return board.san(move)\n"
-            "    return None"
-        ),
-    },
-    {
-        "index": 6,
-        "category": "Code Programming",
-        "description": (
-            "Predict the output of a Python function by tracing its execution "
-            "step by step given specific input values, tracking variable states "
-            "through each line of code."
-        ),
-        "template": (
-            "Step 1: Read the function signature and identify all parameters. "
-            "Bind each parameter to the provided input value.\n"
-            "Step 2: Execute the function body line by line, maintaining a variable "
-            "state table that records the current value of every variable after "
-            "each assignment or mutation.\n"
-            "Step 3: For control flow (if/else, for, while), evaluate the condition "
-            "with the current variable values and follow only the branch that is taken.\n"
-            "Step 4: For nested function calls or built-in operations, resolve them "
-            "using their standard Python semantics (e.g., list.append mutates in place "
-            "and returns None; sorted() returns a new list).\n"
-            "Step 5: When a return statement is reached, record the returned value as "
-            "the function output.\n"
-            "Step 6: State the final output clearly, paying attention to the exact "
-            "type and structure (int, str, list, tuple, None, etc.)."
+            "Step 1: Calculate the Discriminant\n"
+            "- Compute the discriminant D using the formula D = b^2 - 4ac.\n\n"
+            "Step 2: Determine the Nature of the Roots\n"
+            "- If D > 0, the equation has two distinct real roots.\n"
+            "- If D = 0, the equation has exactly one real root (also known as a "
+            "repeated or double root).\n"
+            "- If D < 0, the equation has two complex roots.\n\n"
+            "Step 3: Compute the Roots\n"
+            "- For D >= 0, calculate the roots using the formula "
+            "x = (-b +/- sqrt(D)) / (2a).\n"
+            "- For D < 0, calculate the real and imaginary parts of the complex roots "
+            "using the formula x = -b/(2a) +/- sqrt(-D)/(2a) * i, "
+            "where i is the imaginary unit."
         ),
     },
 ]
@@ -248,15 +298,17 @@ SEED_TEMPLATES: list = [
 class ThoughtTemplate:
     index: int
     category: str
-    description: str
-    template: str
+    description: str        # Task Description — used for embedding retrieval
+    template: str           # Thought Template steps / code
+    solution_description: str = ""  # Solution Description (empty for code templates)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ThoughtTemplate":
-        return cls(**d)
+        known = {f.name for f in cls.__dataclass_fields__.values()}
+        return cls(**{k: v for k, v in d.items() if k in known})
 
 
 
@@ -354,9 +406,10 @@ that can be reused for similar problems.
 
 Return your response in the following JSON format (and ONLY this JSON):
 {
-  "category": "<one of the six categories>",
-  "description": "<one sentence description for retrieval>",
-  "template": "<the full thought-template text>"
+  "category": "<one of: Text Comprehension, Creative Language Generation, Common Sense Reasoning, Mathematical Reasoning, Code Programming, Application Scheduling>",
+  "description": "<Task Description: one or two sentences describing the task type for retrieval>",
+  "solution_description": "<Solution Description: explain the general approach and key considerations for solving this type of problem; leave empty string for code-only templates>",
+  "template": "<Thought Template: the full step-by-step thought template or code skeleton>"
 }
 """
 
@@ -505,11 +558,18 @@ class BoT(BaseBaseline):
         self, distilled_info: str, template: ThoughtTemplate, system_prompt: Optional[str] = None
     ) -> str:
         role_line = f"[Role]\n{system_prompt}\n\n" if system_prompt else ""
+        solution_desc_line = (
+            f"\nSolution Description:\n{template.solution_description}\n"
+            if template.solution_description else ""
+        )
         prompt = (
             f"{INSTANTIATION_SYSTEM}\n\n"
             f"{role_line}"
             f"[Distilled Problem]\n{distilled_info}\n\n"
-            f"[Thought Template — {template.category}]\n{template.template}"
+            f"[Thought Template — {template.category}]\n"
+            f"Task Description:\n{template.description}\n"
+            f"{solution_desc_line}"
+            f"\nThought Template:\n{template.template}"
         )
         return self.call_llm(prompt, temperature=self.instantiation_temperature).content.strip()
 
@@ -583,11 +643,23 @@ class BoT(BaseBaseline):
                      "(too similar to an existing one or distillation failed)."
             )
 
+        if template:
+            sol_desc = (
+                f"\nSolution Description:\n{template.solution_description}\n"
+                if template.solution_description else ""
+            )
+            template_block = (
+                f"Category: {template.category}\n"
+                f"Task Description:\n{template.description}\n"
+                f"{sol_desc}"
+                f"\nThought Template:\n{template.template}"
+            )
+        else:
+            template_block = "(none — new task, used general reasoning structure)"
         reasoning_trace = (
-            f"[Distilled Problem]\n{distilled_info}\n\n[Retrieved Template]\n"
-            + (f"Category: {template.category}\nTemplate:\n{template.template}"
-               if template else "(none — new task, used general reasoning structure)")
-            + f"\n\n[Instantiated Reasoning]\n{raw_solution}"
+            f"[Distilled Problem]\n{distilled_info}\n\n"
+            f"[Retrieved Template]\n{template_block}\n\n"
+            f"[Instantiated Reasoning]\n{raw_solution}"
         )
 
         return self.create_response(
