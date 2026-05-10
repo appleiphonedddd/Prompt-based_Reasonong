@@ -1,6 +1,9 @@
 import argparse
+import json
 import logging
+import os
 import time
+from datetime import datetime
 from models.gpt import GPTClient
 from models.deepseek import DeepSeekClient
 from models.llama import LlamaClient
@@ -191,6 +194,15 @@ class Evaluator:
             # Multiple languages: run each and aggregate
             self._run_multiple_languages(languages)
 
+    def _save_results(self, data: dict) -> None:
+        os.makedirs("results", exist_ok=True)
+        model_slug = self.args.model.replace(":", "-").replace("/", "-")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"results/{self.args.benchmark}_{self.args.baseline}_{model_slug}_{timestamp}.json"
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"Results saved → {filename}")
+
     def _run_single_language(self, language: str) -> None:
         """Run evaluation for a single language."""
         args = self.args
@@ -215,8 +227,24 @@ class Evaluator:
             stats.add_result(self.run_once(i, dataset, efficiency))
 
         stats.print_summary(baseline_name=args.baseline)
-        print(f"Avg time/question: {efficiency.get_T():.2f}s  (over {efficiency.get_M()} run(s))")
+        avg_t = efficiency.get_T()
+        print(f"Avg time/question: {avg_t:.2f}s  (over {efficiency.get_M()} run(s))")
         print("\nAll done!")
+
+        self._save_results({
+            "metadata": {
+                "model": args.model,
+                "benchmark": args.benchmark,
+                "baseline": args.baseline,
+                "language": language,
+                "num_runs": args.num_runs,
+                "num_questions": n,
+                "timestamp": datetime.now().isoformat(timespec="seconds"),
+            },
+            "per_run_accuracies": stats.accuracy_list,
+            "mean_accuracy": round(sum(stats.accuracy_list) / len(stats.accuracy_list), 4) if stats.accuracy_list else 0.0,
+            "avg_time_per_question_s": round(avg_t, 4),
+        })
 
         # Restore original language
         args.language = original_language
@@ -290,10 +318,31 @@ class Evaluator:
                 std_acc = 0.0
 
             print("-" * 70)
+            print(f"Benchmark:      {args.benchmark}")
+            print(f"Baseline:       {args.baseline}")
             print(f"  Mean Accuracy:  {mean_acc:.2f}%  (std: {std_acc:.2f}%)")
             print(f"  Min/Max:        {min(accuracies):.2f}% / {max(accuracies):.2f}%")
             print(f"  Success Rate:   {len(valid_results)}/{len(languages)} languages")
             print("-" * 70)
+
+            self._save_results({
+                "metadata": {
+                    "model": args.model,
+                    "benchmark": args.benchmark,
+                    "baseline": args.baseline,
+                    "languages": languages,
+                    "num_runs": args.num_runs,
+                    "timestamp": datetime.now().isoformat(timespec="seconds"),
+                },
+                "per_language": results,
+                "summary": {
+                    "mean_accuracy": round(mean_acc, 4),
+                    "std_accuracy": round(std_acc, 4),
+                    "min_accuracy": round(min(accuracies), 4),
+                    "max_accuracy": round(max(accuracies), 4),
+                    "success_rate": f"{len(valid_results)}/{len(languages)}",
+                },
+            })
 
         print("\nAll done!")
 
