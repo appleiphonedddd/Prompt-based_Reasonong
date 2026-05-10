@@ -53,9 +53,10 @@ Evaluation:"""
 FINAL_ANSWER_PROMPT = """You are solving the Game of 24.
 The numbers {state} were given.  Here are the intermediate steps taken:
 {steps}
-Write a single valid equation using each of the original numbers exactly once \
-that equals 24.  Reply with the equation only (e.g. "(10 - 4) * (9 - 5) = 24").
-Equation:"""
+Write a single arithmetic expression using each of the original numbers exactly once \
+that equals 24.  Reply with the expression only, no "= 24" suffix \
+(e.g. "(10 - 4) * (9 - 5)").
+Expression:"""
 
 # Matches a Game of 24 input: exactly four space-separated positive integers.
 _GAME_OF_24_RE = re.compile(r"^\d+(?:\s+\d+){3}$")

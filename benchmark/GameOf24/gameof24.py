@@ -232,14 +232,23 @@ class GameOf24(DatasetBase):
         # collect ALL candidate segments and try each one from last to first,
         # preferring the one that evaluates to 24 with the right numbers.
         candidates = re.findall(r"[\d\s()+\-*/%.]+", clean)
-        # Try candidates from last to first so that the "final expression"
-        # in the model output is preferred over any numbers in the preamble.
+        # Try candidates from last to first, preferring segments that contain
+        # arithmetic operators over bare numbers.  This avoids picking "24"
+        # when the model appends "= 24" to an otherwise correct expression.
         expr = clean  # fallback
+        fallback_number: str | None = None
         for candidate in reversed(candidates):
             stripped = candidate.strip()
-            if stripped:
+            if not stripped:
+                continue
+            if re.search(r"[+\-*/()]", stripped):
                 expr = stripped
                 break
+            if fallback_number is None:
+                fallback_number = stripped
+        else:
+            if expr == clean and fallback_number is not None:
+                expr = fallback_number
 
         details: dict = {"raw_prediction": prediction, "parsed_expression": expr}
 
