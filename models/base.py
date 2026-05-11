@@ -25,6 +25,7 @@ class LLMResponse:
     model_name: str
     input_tokens: int = 0
     output_tokens: int = 0
+    avg_logprob: Optional[float] = None  # average token probability (P_res); None if unsupported
     raw_response: Dict[str, Any] = field(default_factory=dict)
 
 class BaseLLM(ABC):
@@ -35,5 +36,14 @@ class BaseLLM(ABC):
         self.model = model
 
     @abstractmethod
-    def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
+    def generate(self, prompt: str, temperature: float = 0, logprobs: bool = False) -> LLMResponse:
+        """Generate a response for the given prompt.
+
+        Args:
+            prompt: The input prompt.
+            temperature: Sampling temperature.
+            logprobs: If True, compute and populate avg_logprob in the response
+                      (average token probability per Eq. 2 of the RoT paper).
+                      Falls back to None if the backend does not support it.
+        """
         pass

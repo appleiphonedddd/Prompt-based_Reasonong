@@ -137,7 +137,8 @@ class BaseEmbeddingModel(ABC):
     assess knowledge boundaries by comparing the original task definition
     with the reverse-reasoned task definition.
 
-    The paper uses ``dunzhang/stella_en_1.5B_v5`` via sentence-transformers.
+    The paper uses ``dunzhang/stella_en_1.5B_v5`` via sentence-transformers;
+    use ``BAAI/bge-large-en-v1.5`` for transformers ≥5.x compatibility.
     """
 
     @abstractmethod
@@ -157,18 +158,18 @@ class BaseEmbeddingModel(ABC):
 class SentenceTransformerEmbedding(BaseEmbeddingModel):
     """Embedding model using sentence-transformers (paper's default).
 
-    Uses ``dunzhang/stella_en_1.5B_v5`` as recommended in the paper
-    (Section 4.3), or any other SentenceTransformer-compatible model.
+    Uses ``BAAI/bge-large-en-v1.5`` as default (paper recommends
+    ``dunzhang/stella_en_1.5B_v5`` but it requires transformers <4.x).
 
     Requires:
         pip install sentence-transformers
 
     Example:
-        >>> emb = SentenceTransformerEmbedding("dunzhang/stella_en_1.5B_v5")
+        >>> emb = SentenceTransformerEmbedding("BAAI/bge-large-en-v1.5")
         >>> score = emb.compute_similarity("math problem", "arithmetic task")
     """
 
-    def __init__(self, model_name: str = "dunzhang/stella_en_1.5B_v5"):
+    def __init__(self, model_name: str = "BAAI/bge-large-en-v1.5"):
         try:
             from sentence_transformers import SentenceTransformer, util
         except ImportError:
@@ -184,47 +185,6 @@ class SentenceTransformerEmbedding(BaseEmbeddingModel):
         emb_b = self._model.encode(text_b, convert_to_tensor=True)
         return float(self._util.pytorch_cos_sim(emb_a, emb_b).item())
 
-
-class LLMBasedSimilarity(BaseEmbeddingModel):
-    """Fallback similarity estimator using the LLM itself.
-
-    When sentence-transformers is unavailable, this uses the LLM to
-    estimate semantic similarity between two task descriptions.
-
-    Note: Less accurate than dedicated embedding models, but requires
-    no additional dependencies. Each call consumes one LLM inference.
-
-    Example:
-        >>> llm = GPTClient()
-        >>> emb = LLMBasedSimilarity(llm)
-        >>> score = emb.compute_similarity("math problem", "arithmetic task")
-    """
-
-    SIMILARITY_PROMPT = (
-        "Rate the semantic similarity between these two task descriptions "
-        "on a scale from 0.0 (completely different) to 1.0 (identical). "
-        "Respond with ONLY a decimal number, nothing else.\n\n"
-        "Text A:\n{text_a}\n\n"
-        "Text B:\n{text_b}\n\n"
-        "Similarity score:"
-    )
-
-    def __init__(self, llm: BaseLLM):
-        self._llm = llm
-
-    def compute_similarity(self, text_a: str, text_b: str) -> float:
-        prompt = self.SIMILARITY_PROMPT.format(text_a=text_a, text_b=text_b)
-        response = self._llm.generate(prompt, temperature=0.0)
-        try:
-            score = float(response.content.strip())
-            return max(0.0, min(1.0, score))
-        except (ValueError, TypeError):
-            logger.warning(
-                "LLMBasedSimilarity could not parse score from: %s. "
-                "Defaulting to 0.5.",
-                response.content.strip()[:100],
-            )
-            return 0.5
 
 
 # ─────────────────────────────────────────────────────────
@@ -316,7 +276,7 @@ class RoT(BaseBaseline):
     # Stage 1: Reverse Reasoning Warm-up
     # ──────────────────────────────────────────
 
-    def generate_candidates(self) -> List[str]:
+    def generate_candidates(self) -> Tuple[List[str], List[float]]:
         """Generate K candidate task definitions via reverse reasoning.
 
         Each candidate is produced by prompting the LLM with the
@@ -324,7 +284,10 @@ class RoT(BaseBaseline):
         using a higher temperature to encourage diversity.
 
         Returns:
-            List of K candidate reverse-reasoned prompts.
+            Tuple of (candidates, p_res) where p_res[i] is the average token
+            probability (Eq. 2) for candidate i. Falls back to 1.0 when the
+            backend does not support logprobs, preserving correct ranking via
+            preference scores alone.
         """
         prompt = REVERSAL_OF_THOUGHT_PROMPT
         if self.demos:
@@ -332,12 +295,16 @@ class RoT(BaseBaseline):
 
         with ThreadPoolExecutor(max_workers=self.warmup) as executor:
             futures = [
-                executor.submit(self.call_llm, prompt, self.candidate_temperature)
+                executor.submit(self.call_llm, prompt, self.candidate_temperature, True)
                 for _ in range(self.warmup)
             ]
-            candidates = [f.result().content.strip() for f in futures]
+            responses = [f.result() for f in futures]
 
-        return candidates
+        candidates = [r.content.strip() for r in responses]
+        # Use real avg token probability (Eq. 2); fall back to 1.0 if backend
+        # does not support logprobs so ranking is still driven by preference scores.
+        p_res = [r.avg_logprob if r.avg_logprob is not None else 1.0 for r in responses]
+        return candidates, p_res
 
     # ──────────────────────────────────────────
     # Stage 2: Pairwise Preference Evaluation
@@ -425,17 +392,18 @@ class RoT(BaseBaseline):
         self,
         candidates: List[str],
         p_pre: Dict[Tuple[int, int], float],
+        p_res: List[float],
     ) -> Tuple[int, str]:
-        """Select the optimal candidate based on preference scores.
+        """Select the optimal candidate using Eq. 6 from the paper.
 
-        Computes P_pre_avg[i] = mean preference of candidate i over all others,
-        then selects argmax.  (The paper also uses P_res[i] from logprobs;
-        since the BaseLLM interface does not expose logprobs, we use
-        preference scores alone, which is equivalent to setting P_res uniform.)
+        Computes the combined score (P_res[i] + P_pre_avg[i]) / 2 for each
+        candidate and returns the argmax, matching the reference implementation.
 
         Args:
             candidates: List of K candidate strings.
             p_pre: Preference matrix from build_preference_matrix.
+            p_res: Generation probability scores from generate_candidates.
+                   Uniform 1.0 when logprobs are unavailable.
 
         Returns:
             Tuple of (optimal_index, optimal_candidate_string).
@@ -450,7 +418,8 @@ class RoT(BaseBaseline):
                 ) / (k - 1)
             else:
                 avg_pref = 1.0
-            scores.append(avg_pref)
+            # Eq. 6: P_opt = argmax_Ri [ (P_res^i + P_pre_avg(Ri)) / 2 ]
+            scores.append((p_res[i] + avg_pref) / 2)
 
         optimal_idx = max(range(k), key=lambda i: scores[i])
         return optimal_idx, candidates[optimal_idx]
@@ -686,7 +655,7 @@ class RoT(BaseBaseline):
 
         # ── Stage 1 & 2: run once, then reuse cached llm_taste ──
         if self._cached_llm_taste is None:
-            candidates = self.generate_candidates()
+            candidates, p_res = self.generate_candidates()
             intermediate_steps.append(
                 f"[Stage 1: Reverse Reasoning] Generated {len(candidates)} candidates"
             )
@@ -694,7 +663,7 @@ class RoT(BaseBaseline):
                 intermediate_steps.append(f"[Candidate {idx + 1}]\n{cand}")
 
             p_pre = self.build_preference_matrix(candidates)
-            optimal_idx, llm_taste = self.select_optimal(candidates, p_pre)
+            optimal_idx, llm_taste = self.select_optimal(candidates, p_pre, p_res)
 
             k = len(candidates)
             self._cached_pref_scores = {

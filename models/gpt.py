@@ -16,6 +16,7 @@ Dependencies:
 Author: Egor Morozov
 """
 
+import math
 import os
 from openai import OpenAI
 from .base import BaseLLM, LLMResponse
@@ -28,24 +29,33 @@ class GPTClient(BaseLLM):
             raise ValueError("OpenAI API Key is required.")
         super().__init__(key, model)
         self.client = OpenAI(api_key=self.api_key)
-    
-    def generate(self, prompt: str, temperature: float = 0) -> LLMResponse:
-        
+
+    def generate(self, prompt: str, temperature: float = 0, logprobs: bool = False) -> LLMResponse:
         try:
-            response = self.client.chat.completions.create(
+            kwargs = dict(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=temperature
+                temperature=temperature,
             )
+            if logprobs:
+                kwargs["logprobs"] = True
 
+            response = self.client.chat.completions.create(**kwargs)
             message_content = response.choices[0].message.content
             usage = response.usage
+
+            avg_logprob = None
+            if logprobs:
+                lp_content = (response.choices[0].logprobs or {}) and response.choices[0].logprobs.content
+                if lp_content:
+                    avg_logprob = sum(math.exp(t.logprob) for t in lp_content) / len(lp_content)
 
             return LLMResponse(
                 content=message_content,
                 model_name=self.model,
                 input_tokens=usage.prompt_tokens if usage else 0,
                 output_tokens=usage.completion_tokens if usage else 0,
+                avg_logprob=avg_logprob,
                 raw_response=response.model_dump()
             )
         except Exception as e:

@@ -10,7 +10,7 @@ from models.llama import LlamaClient
 from models.gemini import GeminiClient
 from models.qwen import QwenClient
 from baseline.CoT import ZeroShotCoT, ZeroShotCoTSinglePass
-from baseline.RoT import RoT
+from baseline.RoT import RoT, SentenceTransformerEmbedding
 from baseline.ToT import ToT
 from baseline.BoT import BoT
 from baseline.GoT import GoT
@@ -48,6 +48,8 @@ BASELINE_REGISTRY: dict[str, tuple] = {
         warmup=a.warmup,
         candidate_temperature=a.candidate_temperature,
         instantiation_temperature=a.instantiation_temperature,
+        embedding_model=SentenceTransformerEmbedding(a.rot_embedding_model),
+        similarity_threshold=a.rot_similarity_threshold,
     )),
     "tot": (ToT, lambda a: dict(
         n_generate_sample=a.tot_n_generate,
@@ -108,7 +110,11 @@ class Evaluator:
 
     def build_baseline(self, client, dataset=None):
         cls, extract_kwargs = BASELINE_REGISTRY[self.args.baseline.lower()]
-        return cls(llm=client, **extract_kwargs(self.args))
+        kwargs = extract_kwargs(self.args)
+        if self.args.baseline.lower() == "rot" and dataset is not None:
+            parts = [p for p in [dataset.get_system_prompt(), dataset.get_instruction()] if p]
+            kwargs["task_prompt"] = "\n".join(parts)
+        return cls(llm=client, **kwargs)
 
     def build_dataset(self):
         benchmark_key = self.args.benchmark.lower()
@@ -377,6 +383,10 @@ def rot_args(parser: argparse.ArgumentParser) -> None:
                    help="Sampling temperature for candidate generation")
     g.add_argument("--instantiation_temperature", type=float, default=0.1,
                    help="Sampling temperature for instantiation reasoning")
+    g.add_argument("--rot_embedding_model", default="BAAI/bge-large-en-v1.5",
+                   help="SentenceTransformer model name for CPM similarity")
+    g.add_argument("--rot_similarity_threshold", type=float, default=0.7,
+                   help="CPM similarity threshold δ (paper recommends 0.6–0.8)")
 
 
 def tot_args(parser: argparse.ArgumentParser) -> None:

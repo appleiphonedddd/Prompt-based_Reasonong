@@ -18,12 +18,10 @@ from .rot import (
     RoT,
     BaseEmbeddingModel,
     SentenceTransformerEmbedding,
-    LLMBasedSimilarity,
 )
 
 __all__ = [
     "RoT",
     "BaseEmbeddingModel",
     "SentenceTransformerEmbedding",
-    "LLMBasedSimilarity",
 ]

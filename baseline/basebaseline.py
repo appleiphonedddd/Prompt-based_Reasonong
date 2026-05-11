@@ -100,17 +100,19 @@ class BaseBaseline(ABC):
         self.total_output_tokens = 0
         self.num_llm_calls = 0
 
-    def call_llm(self, prompt: str, temperature: float = 0.0) -> LLMResponse:
+    def call_llm(self, prompt: str, temperature: float = 0.0, logprobs: bool = False) -> LLMResponse:
         """Internal method to call the LLM and track usage statistics.
 
         Args:
             prompt: The prompt to send to the LLM.
             temperature: Sampling temperature for generation.
+            logprobs: If True, request token log probabilities from the backend.
+                      Populated in LLMResponse.avg_logprob when supported.
 
         Returns:
             LLMResponse containing the generation result.
         """
-        response = self.llm.generate(prompt, temperature=temperature)
+        response = self.llm.generate(prompt, temperature=temperature, logprobs=logprobs)
         with self._counter_lock:
             self.total_input_tokens += response.input_tokens
             self.total_output_tokens += response.output_tokens
