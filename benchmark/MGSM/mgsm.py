@@ -69,14 +69,20 @@ def _extract_number(text: str) -> Optional[float]:
     # Normalise: remove commas used as thousands separators
     cleaned = text.replace(",", "")
 
-    # Priority: look for explicit answer markers
-    marker_pattern = re.compile(
-        r"(?:answer(?:\s+is)?|result(?:\s+is)?|=)\s*(-?\d+(?:\.\d+)?)",
+    # Priority 1: explicit "answer is / result is" markers (take the last match)
+    explicit_pattern = re.compile(
+        r"(?:answer(?:\s+is)?|result(?:\s+is)?)\s*(-?\d+(?:\.\d+)?)",
         re.IGNORECASE,
     )
-    marker_match = marker_pattern.search(cleaned)
-    if marker_match:
-        return float(marker_match.group(1))
+    explicit_matches = explicit_pattern.findall(cleaned)
+    if explicit_matches:
+        return float(explicit_matches[-1])
+
+    # Priority 2: equality sign — e.g. "= 42" (take last to skip intermediate steps)
+    eq_pattern = re.compile(r"=\s*(-?\d+(?:\.\d+)?)")
+    eq_matches = eq_pattern.findall(cleaned)
+    if eq_matches:
+        return float(eq_matches[-1])
 
     # Fallback: collect all numbers and return the last one
     all_numbers = re.findall(r"-?\d+(?:\.\d+)?", cleaned)
