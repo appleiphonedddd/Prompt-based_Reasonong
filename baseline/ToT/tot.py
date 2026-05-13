@@ -220,8 +220,9 @@ class ToT(BaseBaseline):
             prompt = (
                 task_ctx + "\n\n"
                 "Current state:\n" + node.state + "\n\n"
-                "Propose several possible next reasoning steps or partial solutions "
-                "toward solving this problem.\n"
+                "Propose several possible next reasoning steps toward solving this problem.\n"
+                "For each step, show your reasoning and end the line with "
+                "[state: <updated state after this step>].\n"
                 "List each step on a new line. Be specific and concrete."
             )
         else:
@@ -261,7 +262,11 @@ class ToT(BaseBaseline):
         Returns:
             A string of space-separated remaining numbers.
         """
-        # Pattern: "(left: 4 4 10)" or "left: 4 4 10"
+        # Generic state marker for non-Game-of-24 tasks
+        match = re.search(r"\[state:\s*([^\]]+)\]", thought, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        # Pattern: "(left: 4 4 10)" or "left: 4 4 10" — Game of 24
         match = re.search(r"left[:\s]+([0-9 ]+)", thought, re.IGNORECASE)
         if match:
             return match.group(1).strip()

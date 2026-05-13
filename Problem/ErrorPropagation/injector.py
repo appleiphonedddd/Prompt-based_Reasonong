@@ -1,31 +1,33 @@
 """
-Error injection experiment for BBH Geometric Shapes.
+Error injection experiment for CRUXEval (code output prediction).
 
 For each problem that CoT solves correctly, we plant one wrong intermediate
-conclusion at three positions (early / mid / late) and let the model continue
+value at three positions (early / mid / late) and let the model continue
 reasoning from that corrupted step.
 
 Corruption strategy (tried in order):
-  1. Corrupt a small integer  (e.g. "3 segments" → "4 segments")
-  2. Swap a shape name        (e.g. "triangle" → "quadrilateral")
-  3. Flip the choice letter   (e.g. "(J)" → "(H)")
+  1. Corrupt a small integer (e.g. "result = 3" → "result = 4")
+  2. Flip a boolean value   (True ↔ False)
+  3. Corrupt a string value (append/change one character)
 """
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from models.base import BaseLLM
-from tracer import StepTrace, _extract_final_choice
+from tracer import StepTrace
+from benchmark.CRUXEval.cruxeval import _extract_python_literal, _eval_literal
 
 
 # ── Prompt ─────────────────────────────────────────────────────────────────────
@@ -35,11 +37,10 @@ _CONTINUE_PROMPT = """\
 
 {instruction}
 
-Question:
 {question}
 
-A student started solving this problem but may have made an error.
-Continue the reasoning from Step {next_step} and determine the correct answer.
+A student started tracing through this function but may have made an error.
+Continue the execution trace from Step {next_step} and determine the correct return value.
 
 {partial_steps}
 
@@ -50,30 +51,14 @@ Continue from Step {next_step}:\
 # ── Corruption strategies ──────────────────────────────────────────────────────
 
 _SMALL_INT = re.compile(r"\b([2-9]|1[0-2])\b")
-
-_SHAPE_SWAPS = {
-    "triangle":      "quadrilateral",
-    "quadrilateral": "triangle",
-    "pentagon":      "hexagon",
-    "hexagon":       "pentagon",
-    "heptagon":      "octagon",
-    "octagon":       "heptagon",
-    "rectangle":     "pentagon",
-    "kite":          "triangle",
-    "circle":        "octagon",
-    "sector":        "circle",
-    "line":          "triangle",
-}
-
-_CHOICE_LETTERS = list("ABCDEFGHIJ")
-_CHOICE_RE      = re.compile(r"\(([A-Ja-j])\)")
+_BOOL_RE   = re.compile(r"\b(True|False)\b")
+_STR_RE    = re.compile(r"'([^']{1,20})'|\"([^\"]{1,20})\"")
 
 
-def _corrupt(text: str, correct_choice: str) -> Tuple[str, bool]:
+def _corrupt(text: str) -> Tuple[str, bool]:
     """Try the three corruption strategies in order; return (result, success)."""
-    correct_letter = correct_choice.strip("()").upper()
 
-    # Strategy 1: corrupt a small integer (segment / vertex counts)
+    # Strategy 1: corrupt a small integer
     ints = list(_SMALL_INT.finditer(text))
     if ints:
         m   = ints[-1]
@@ -81,24 +66,25 @@ def _corrupt(text: str, correct_choice: str) -> Tuple[str, bool]:
         wrong = (val % 8) + 2
         if wrong == val:
             wrong = (val % 7) + 3
-        return text[: m.start()] + str(wrong) + text[m.end() :], True
+        return text[: m.start()] + str(wrong) + text[m.end():], True
 
-    # Strategy 2: swap a shape name
-    for shape, replacement in _SHAPE_SWAPS.items():
-        if re.search(rf"\b{shape}\b", text, re.IGNORECASE):
-            corrupted = re.sub(
-                rf"\b{shape}\b", replacement, text, count=1, flags=re.IGNORECASE
-            )
-            return corrupted, True
+    # Strategy 2: flip a boolean
+    m = _BOOL_RE.search(text)
+    if m:
+        original  = m.group(1)
+        flipped   = "False" if original == "True" else "True"
+        corrupted = text[: m.start()] + flipped + text[m.end():]
+        return corrupted, True
 
-    # Strategy 3: flip a choice letter
-    choices = list(_CHOICE_RE.finditer(text))
-    if choices:
-        m = choices[-1]
-        for letter in _CHOICE_LETTERS:
-            if letter != correct_letter and letter != m.group(1).upper():
-                corrupted = text[: m.start()] + f"({letter})" + text[m.end() :]
-                return corrupted, True
+    # Strategy 3: corrupt a short string literal
+    m = _STR_RE.search(text)
+    if m:
+        quote    = "'" if m.group(1) is not None else '"'
+        content  = m.group(1) if m.group(1) is not None else m.group(2)
+        corrupted_content = content + "x" if content else "x"
+        replacement = f"{quote}{corrupted_content}{quote}"
+        corrupted = text[: m.start()] + replacement + text[m.end():]
+        return corrupted, True
 
     return text, False
 
@@ -119,7 +105,7 @@ def _pick_step(n_steps: int, position: str) -> Optional[int]:
 class InjectionResult:
     problem_index: int
     question: str
-    ground_truth: str
+    ground_truth: Any
     position: str
     inject_step: Optional[int]
     total_steps: int
@@ -128,9 +114,11 @@ class InjectionResult:
     final_correct: bool
 
     def to_dict(self) -> dict:
+        gt = self.ground_truth
+        expected = gt["expected_output"] if isinstance(gt, dict) else str(gt)
         return {
             "problem_index": self.problem_index,
-            "ground_truth": self.ground_truth,
+            "ground_truth": expected,
             "position": self.position,
             "inject_step": self.inject_step,
             "total_steps": self.total_steps,
@@ -148,6 +136,18 @@ class ErrorInjector:
         self.llm = llm
         self.system_prompt = system_prompt
         self.instruction   = instruction
+
+    def _expected_output(self, ground_truth: Any) -> str:
+        if isinstance(ground_truth, dict):
+            return ground_truth.get("expected_output", "")
+        return str(ground_truth)
+
+    def _values_equal(self, predicted: str, expected: str) -> bool:
+        pred_val, pred_ok = _eval_literal(predicted)
+        exp_val,  exp_ok  = _eval_literal(expected)
+        if pred_ok and exp_ok:
+            return pred_val == exp_val
+        return predicted.strip() == expected.strip()
 
     def _clean_result(self, trace: StepTrace) -> InjectionResult:
         return InjectionResult(
@@ -173,7 +173,7 @@ class ErrorInjector:
             if step.index < k:
                 lines.append(f"Step {step.index}: {step.text}")
             elif step.index == k:
-                corrupted, ok = _corrupt(step.text, trace.ground_truth)
+                corrupted, ok = _corrupt(step.text)
                 if not ok:
                     return None
                 lines.append(f"Step {step.index}: {corrupted}")
@@ -187,12 +187,12 @@ class ErrorInjector:
             next_step=k + 1,
         )
 
-        content        = self.llm.generate(prompt, temperature=0.0).content
-        final_letter   = _extract_final_choice(content)
-        correct_letter = trace.ground_truth.strip("()").upper()
-        final_correct  = (
-            final_letter is not None
-            and final_letter.upper() == correct_letter
+        content       = self.llm.generate(prompt, temperature=0.0).content
+        final_answer  = _extract_python_literal(content)
+        expected      = self._expected_output(trace.ground_truth)
+        final_correct = (
+            final_answer is not None
+            and self._values_equal(final_answer, expected)
         )
 
         return InjectionResult(
@@ -203,7 +203,7 @@ class ErrorInjector:
             inject_step=k,
             total_steps=n,
             continuation=content[:300],
-            final_answer=final_letter,
+            final_answer=final_answer,
             final_correct=final_correct,
         )
 
@@ -215,6 +215,7 @@ class ErrorInjector:
         results: List[InjectionResult] = []
 
         for trace in correct_traces:
+            expected = self._expected_output(trace.ground_truth)
             for pos in self.POSITIONS:
                 print(f"  [injector] Q{trace.problem_index:03d} pos={pos:5s}", end="  ", flush=True)
                 try:
@@ -223,7 +224,7 @@ class ErrorInjector:
                         print("SKIP (too few steps or no corruption found)")
                         continue
                     mark = "+" if r.final_correct else "x"
-                    print(f"[{mark}]  pred={r.final_answer}  GT={r.ground_truth.strip('()')}")
+                    print(f"[{mark}]  pred={r.final_answer!r}  GT={expected!r}")
                     results.append(r)
                 except Exception as exc:
                     print(f"ERROR: {exc}")

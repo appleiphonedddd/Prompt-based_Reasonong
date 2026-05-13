@@ -3,15 +3,15 @@ Error Propagation Preliminary Experiment
 =========================================
 
 Proves that a single wrong step in CoT reasoning cascades and kills
-the final answer — demonstrated on BBH Geometric Shapes.
+the final answer — demonstrated on CRUXEval (code output prediction).
 
 Pipeline
 --------
 1. Tracer   — run CoT on N problems, parse each numbered step,
-              detect which step first commits to a wrong choice letter.
+              detect the first step that commits to a wrong Python value.
 2. Injector — take only the correctly-solved problems, plant one
-              wrong intermediate conclusion at early / mid / late
-              positions, and record whether the final choice survives.
+              wrong intermediate value at early / mid / late
+              positions, and record whether the final value survives.
 3. Visualizer — produce three publication-quality figures.
 
 Output
@@ -41,7 +41,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from models.qwen import QwenClient
-from benchmark.BigBenchHard.bigbenchhard import BigBenchHard
+from benchmark.CRUXEval.cruxeval import CRUXEval
 from tracer import CoTStepTracer
 from injector import ErrorInjector
 from visualize import plot_all
@@ -57,12 +57,12 @@ DATA_DIR   = HERE / "data"
 
 def main() -> None:
     print("=" * 64)
-    print("  Error Propagation in CoT — BBH Geometric Shapes")
+    print("  Error Propagation in CoT — CRUXEval")
     print(f"  Model: {MODEL}  |  N problems: {N_PROBLEMS}")
     print("=" * 64)
 
     llm     = QwenClient(model=MODEL)
-    dataset = BigBenchHard(task="geometric_shapes")
+    dataset = CRUXEval()
     dataset.load_dataset()
 
     # ── Phase 1: Step tracing ──────────────────────────────────────────────────
@@ -97,7 +97,7 @@ def main() -> None:
         results=results,
         out_dir=HERE,
         model_name=MODEL,
-        task_name="BBH Geometric Shapes",
+        task_name="CRUXEval",
         n_problems=N_PROBLEMS,
     )
 
