@@ -1,16 +1,16 @@
 """
-Qwen LLM client implementation.
+Gemma LLM client implementation.
 
 This module provides a concrete implementation of the BaseLLM interface
-using the Qwen API (OpenAI-compatible endpoint). It handles API key
+using the Gemma API (OpenAI-compatible endpoint). It handles API key
 resolution, request execution, response parsing, and error handling.
 
 Classes:
-- QwenClient: An LLM client that communicates with Qwen models via a
+- GemmaClient: An LLM client that communicates with Gemma models via a
   compatible OpenAI-style API and returns standardized LLMResponse objects.
 
 Dependencies:
-- Requires a valid Qwen API key, provided either directly or via the
+- Requires a valid Gemma API key, provided either directly or via the
   API_KEY environment variable.
 
 Author: Egor Morozov
@@ -22,15 +22,15 @@ from openai import OpenAI
 from .base import BaseLLM, LLMResponse
 from utils.config import get_config
 
-class QwenClient(BaseLLM):
+class GemmaClient(BaseLLM):
 
-    def __init__(self, api_key: str = None, model: str ="qwen2:7b"):
+    def __init__(self, api_key: str = None, model: str ="gemma3:27b"):
         config = get_config()
         key = api_key or os.getenv("API_KEY") or "local"
-        model = model or config["models"]["qwen"]
+        model = model or config["models"]["gemma"]
 
-        # Remove "qwen:" prefix if present (used by main.py for client selection)
-        if model.startswith("qwen:"):
+        # Remove "gemma:" prefix if present (used by main.py for client selection)
+        if model.startswith("gemma:"):
             model = model.split(":", 1)[1]
 
         super().__init__(key, model)
@@ -71,4 +71,4 @@ class QwenClient(BaseLLM):
                 raw_response=response.model_dump()
             )
         except Exception as e:
-            raise RuntimeError(f"Qwen API Error: {e}")
+            raise RuntimeError(f"Gemma API Error: {e}")

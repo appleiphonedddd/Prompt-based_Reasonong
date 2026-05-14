@@ -9,6 +9,7 @@ from models.deepseek import DeepSeekClient
 from models.llama import LlamaClient
 from models.gemini import GeminiClient
 from models.qwen import QwenClient
+from models.gemma import GemmaClient
 from baseline.CoT import ZeroShotCoT, ZeroShotCoTSinglePass
 from baseline.RoT import RoT, SentenceTransformerEmbedding
 from baseline.ToT import ToT
@@ -37,6 +38,8 @@ MODEL_REGISTRY: dict[str, type] = {
     "qwen2":    QwenClient,
     "qwen2.5":  QwenClient,
     "qwen3":    QwenClient,
+    "gemma":    GemmaClient,
+    "gemma3":   GemmaClient,
 }
 
 # To add a new baseline: insert one entry here (class, kwargs-extractor).
