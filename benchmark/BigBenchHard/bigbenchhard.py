@@ -156,6 +156,12 @@ def _extract_answer_from_text(text: str) -> str:
     text = re.sub(r"\\\((.*?)\\\)", r"\1", text)
     text = re.sub(r"\\\[(.*?)\\\]", r"\1", text, flags=re.DOTALL)
 
+    # \boxed{...} — math models box their final answer; take the LAST occurrence
+    # so intermediate boxed steps don't shadow the true final answer.
+    boxed = re.findall(r"\\boxed\{([^}]+)\}", text)
+    if boxed:
+        return _normalize_whitespace(boxed[-1].strip())
+
     # Try to extract answer after common patterns.
     # Use (?:[:\-](?!\d))? instead of [:\-]? so the leading minus of a negative
     # answer (e.g. "The answer is -13") is never consumed as a dash separator.

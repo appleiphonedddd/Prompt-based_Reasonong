@@ -134,6 +134,13 @@ class TestBigBenchHardEvaluation(unittest.TestCase):
         result = ds.evaluate_answer("The final answer is 42.", "42")
         self.assertTrue(result.is_correct, "Trailing period caused false negative")
 
+        # \\boxed{...} format used by math models
+        result = ds.evaluate_answer(r"\[\n\boxed{24}\n\]", "24")
+        self.assertTrue(result.is_correct, "\\boxed not extracted")
+
+        result = ds.evaluate_answer(r"Step 1: \boxed{5}. Final: \boxed{-13}", "-13")
+        self.assertTrue(result.is_correct, "Last \\boxed should win over intermediate")
+
     def test_choice_normalization(self):
         """Test multiple-choice answer extraction."""
         ds = BigBenchHard(task="disambiguation_qa")
