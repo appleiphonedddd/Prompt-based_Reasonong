@@ -7,9 +7,9 @@ from datetime import datetime
 from models.gpt import GPTClient
 from models.deepseek import DeepSeekClient
 from models.llama import LlamaClient
-from models.gemini import GeminiClient
 from models.qwen import QwenClient
 from models.gemma import GemmaClient
+from models.granite import GraniteClient
 from baseline.CoT import ZeroShotCoT, ZeroShotCoTSinglePass
 from baseline.RoT import RoT, SentenceTransformerEmbedding
 from baseline.ToT import ToT
@@ -33,13 +33,13 @@ MODEL_REGISTRY: dict[str, type] = {
     "llama3.1":    LlamaClient,
     "llama3.3":    LlamaClient,
     "llama2":    LlamaClient,
-    "gemini":   GeminiClient,
     "qwen":     QwenClient,
     "qwen2":    QwenClient,
     "qwen2.5":  QwenClient,
     "qwen3":    QwenClient,
     "gemma":    GemmaClient,
     "gemma3":   GemmaClient,
+    "granite4.1": GraniteClient
 }
 
 # To add a new baseline: insert one entry here (class, kwargs-extractor).

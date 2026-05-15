@@ -114,7 +114,7 @@ def _fig1_accuracy_bar(
 def _fig2_heatmap(
     ax: plt.Axes,
     traces: List[StepTrace],
-    max_steps: int = 8,
+    max_steps: int = 13,
 ) -> None:
     _style(ax, "Fig 2 — Step-Level Correctness Heatmap")
 

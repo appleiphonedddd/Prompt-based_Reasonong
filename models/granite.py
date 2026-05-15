@@ -1,17 +1,17 @@
 """
-Gemini LLM client implementation.
+Granite LLM client implementation.
 
 This module provides a concrete implementation of the BaseLLM interface
-using Google's Gemini API. It manages API key resolution, request
-configuration, response handling, and error propagation.
+using the Granite API (OpenAI-compatible endpoint). It handles API key
+resolution, request execution, response parsing, and error handling.
 
 Classes:
-- GeminiClient: An LLM client that sends prompts to the Gemini API and
-  returns standardized LLMResponse objects.
+- GraniteClient: An LLM client that communicates with Granite models via a
+  compatible OpenAI-style API and returns standardized LLMResponse objects.
 
 Dependencies:
-- Requires a valid Gemini API key, provided either directly or via the
-  GEMINI_API_KEY environment variable.
+- Requires a valid Granite API key, provided either directly or via the
+  API_KEY environment variable.
 
 Author: Egor Morozov
 """
@@ -20,18 +20,22 @@ import math
 import os
 from openai import OpenAI
 from .base import BaseLLM, LLMResponse
+from utils.config import get_config
 
-class GeminiClient(BaseLLM):
+class GraniteClient(BaseLLM):
 
-    def __init__(self, api_key: str = None, model: str ="gemini-2.0-flash-lite"):
-        key = api_key or os.getenv("GEMINI_API_KEY")
-        if not key:
-            raise ValueError("Gemini API Key is required.")
+    def __init__(self, api_key: str = None, model: str ="granite4.1:30b"):
+        config = get_config()
+        key = api_key or os.getenv("API_KEY") or "local"
+        model = model or config["models"]["granite"]
+
+        # Remove "granite:" prefix if present (used by main.py for client selection)
+        if model.startswith("granite:"):
+            model = model.split(":", 1)[1]
+
         super().__init__(key, model)
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
+        base_url = config["llm"]["local"]["base_url"]
+        self.client = OpenAI(api_key=self.api_key, base_url=base_url, timeout=60.0)
 
     def generate(self, prompt: str, temperature: float = 0, logprobs: bool = False) -> LLMResponse:
         try:
@@ -39,6 +43,7 @@ class GeminiClient(BaseLLM):
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
+                max_tokens=2048,
             )
             if logprobs:
                 kwargs["logprobs"] = True
@@ -47,8 +52,7 @@ class GeminiClient(BaseLLM):
             message_content = response.choices[0].message.content
             usage = response.usage
 
-            # Gemini's OpenAI-compatible endpoint supports logprobs for some models;
-            # fall back gracefully if the field is absent.
+            # Ollama's OpenAI-compatible endpoint supports logprobs.
             avg_logprob = None
             if logprobs:
                 try:
@@ -67,4 +71,4 @@ class GeminiClient(BaseLLM):
                 raw_response=response.model_dump()
             )
         except Exception as e:
-            raise RuntimeError(f"Gemini API Error: {e}")
+            raise RuntimeError(f"Granite API Error: {e}")
