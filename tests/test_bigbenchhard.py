@@ -141,6 +141,20 @@ class TestBigBenchHardEvaluation(unittest.TestCase):
         result = ds.evaluate_answer(r"Step 1: \boxed{5}. Final: \boxed{-13}", "-13")
         self.assertTrue(result.is_correct, "Last \\boxed should win over intermediate")
 
+        # Regression: "answer to the expression ((8-2+...)) is 42" — the expression
+        # contains many numbers; the actual answer is the LAST number in the string.
+        result = ds.evaluate_answer(
+            r"the final answer to the expression \(((8 - 2 + -2 \times 6) \times (8 + -6 + -8 + -1))\) is **42**.",
+            "42",
+        )
+        self.assertTrue(result.is_correct, "First number in embedded expression caused false negative")
+
+        result = ds.evaluate_answer(
+            r"the final numerical answer to the expression \(((1 - 7 - -8 \times 3) + (-7 - -2 + -3 \times 6))\) is \(-5\).",
+            "-5",
+        )
+        self.assertTrue(result.is_correct, "First number in embedded expression caused false negative")
+
     def test_choice_normalization(self):
         """Test multiple-choice answer extraction."""
         ds = BigBenchHard(task="disambiguation_qa")

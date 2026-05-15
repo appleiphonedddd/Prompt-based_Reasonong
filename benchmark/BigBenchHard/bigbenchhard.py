@@ -377,11 +377,15 @@ class BigBenchHard(DatasetBase):
             return text
 
         elif answer_type == "numeric":
-            # Use (?:\.\d+)? instead of \.?\d* so a sentence-ending period
-            # (e.g. "The answer is -13.") is never absorbed into the match.
-            match = re.search(r"-?\d+(?:\.\d+)?", text)
-            if match:
-                return match.group()
+            # Take the LAST number found, not the first.  When the extraction
+            # accidentally captures a sentence like "answer to the expression
+            # ((8 - 2 + …)) is 42", the first number is from the embedded
+            # expression while the actual answer appears at the end.
+            # Use (?:\.\d+)? (not \.?\d*) so sentence-ending periods are not
+            # absorbed (e.g. "The answer is -13." → "-13", not "-13.").
+            matches = re.findall(r"-?\d+(?:\.\d+)?", text)
+            if matches:
+                return matches[-1]
             return text
 
         elif answer_type == "choice":
