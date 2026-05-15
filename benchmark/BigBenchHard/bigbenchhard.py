@@ -156,12 +156,14 @@ def _extract_answer_from_text(text: str) -> str:
     text = re.sub(r"\\\((.*?)\\\)", r"\1", text)
     text = re.sub(r"\\\[(.*?)\\\]", r"\1", text, flags=re.DOTALL)
 
-    # Try to extract answer after common patterns
+    # Try to extract answer after common patterns.
+    # Use (?:[:\-](?!\d))? instead of [:\-]? so the leading minus of a negative
+    # answer (e.g. "The answer is -13") is never consumed as a dash separator.
     patterns = [
-        r"[Aa]nswer\s*(?:is)?\s*[:\-]?\s*([^\n]+)",
-        r"[Ff]inal\s+answer\s*[:\-]?\s*([^\n]+)",
-        r"[Tt]he\s+answer\s+is\s*[:\-]?\s*([^\n]+)",
-        r"[Rr]esult\s*[:\-]?\s*([^\n]+)",
+        r"[Aa]nswer\s*(?:is)?\s*(?:[:\-](?!\d))?\s*([^\n]+)",
+        r"[Ff]inal\s+answer\s*(?:[:\-](?!\d))?\s*([^\n]+)",
+        r"[Tt]he\s+answer\s+is\s*(?:[:\-](?!\d))?\s*([^\n]+)",
+        r"[Rr]esult\s*(?:[:\-](?!\d))?\s*([^\n]+)",
     ]
 
     for pattern in patterns:
@@ -369,21 +371,28 @@ class BigBenchHard(DatasetBase):
             return text
 
         elif answer_type == "numeric":
-            # Extract first number (or return as-is if it's numeric)
-            match = re.search(r"-?\d+\.?\d*", text)
+            # Use (?:\.\d+)? instead of \.?\d* so a sentence-ending period
+            # (e.g. "The answer is -13.") is never absorbed into the match.
+            match = re.search(r"-?\d+(?:\.\d+)?", text)
             if match:
                 return match.group()
             return text
 
         elif answer_type == "choice":
-            # Extract choice letter (A–Z).  Try parenthesised form first
-            # ("(A)", "(b)"), then bare letter at word boundary.
+            # 1. Fully parenthesised: "(A)", "(b)"
             match = re.search(r"\(([a-z])\)", text)
             if match:
                 return match.group(1)
-            match = re.search(r"\b([a-z])\b", text)
+            # 2. Half-parenthesised: "A)" — opening paren dropped by model
+            match = re.search(r"\b([a-z])\)", text)
             if match:
                 return match.group(1)
+            # 3. Last isolated single letter.  Models put the answer at the END
+            # of their output; taking the last match avoids false hits on common
+            # English single-letter words ("i", "a") that appear at the start.
+            matches = re.findall(r"\b([a-z])\b", text)
+            if matches:
+                return matches[-1]
             return text
 
         elif answer_type == "word_list":

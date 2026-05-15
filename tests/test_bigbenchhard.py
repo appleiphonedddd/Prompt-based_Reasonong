@@ -127,6 +127,13 @@ class TestBigBenchHardEvaluation(unittest.TestCase):
         result = ds.evaluate_answer("After calculation, 100 is the result", "100")
         self.assertTrue(result.is_correct)
 
+        # Regression: trailing sentence period must not be absorbed into the match
+        result = ds.evaluate_answer("The answer is -13.", "-13")
+        self.assertTrue(result.is_correct, "Trailing period caused false negative")
+
+        result = ds.evaluate_answer("The final answer is 42.", "42")
+        self.assertTrue(result.is_correct, "Trailing period caused false negative")
+
     def test_choice_normalization(self):
         """Test multiple-choice answer extraction."""
         ds = BigBenchHard(task="disambiguation_qa")
@@ -142,6 +149,17 @@ class TestBigBenchHardEvaluation(unittest.TestCase):
         # Test standalone letter
         result = ds.evaluate_answer("A", "A")
         self.assertTrue(result.is_correct)
+
+        # Regression: sentence-initial "I" must not shadow the answer letter
+        result = ds.evaluate_answer("I think option B is correct", "(B)")
+        self.assertTrue(result.is_correct, "Pronoun 'I' caused false negative")
+
+        result = ds.evaluate_answer("I would say b", "(B)")
+        self.assertTrue(result.is_correct, "Pronoun 'I' caused false negative")
+
+        # Regression: half-parenthesised form "A)"
+        result = ds.evaluate_answer("Answer: A)", "(A)")
+        self.assertTrue(result.is_correct, "Half-parenthesised form not handled")
 
     def test_word_list_normalization(self):
         """Test word list normalization for word_sorting."""
